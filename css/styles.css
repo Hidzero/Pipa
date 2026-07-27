@@ -252,6 +252,34 @@ a {
   margin-top: 14px;
 }
 
+.delivery-form-panel {
+  margin-top: 14px;
+}
+
+.reservoir-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.reservoir-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.signature-pad {
+  width: 100%;
+  height: 180px;
+  background: #fff;
+  border: 1px solid #c7d8d3;
+  border-radius: var(--radius);
+  touch-action: none;
+}
+
 .segmented-control {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -637,6 +665,11 @@ a {
 
   .route-toolbar {
     grid-template-columns: 180px minmax(220px, 1fr) minmax(300px, 1fr);
+  }
+
+  .reservoir-row {
+    grid-template-columns: 1.2fr 0.8fr 0.8fr 1fr;
+    align-items: end;
   }
 
   .schedule-controls {
