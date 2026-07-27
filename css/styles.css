@@ -246,6 +246,12 @@ a {
   margin-bottom: 14px;
 }
 
+.route-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
 .segmented-control {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -627,6 +633,10 @@ a {
 
   .agenda-toolbar {
     grid-template-columns: repeat(3, minmax(160px, 1fr)) auto;
+  }
+
+  .route-toolbar {
+    grid-template-columns: 180px minmax(220px, 1fr) minmax(300px, 1fr);
   }
 
   .schedule-controls {

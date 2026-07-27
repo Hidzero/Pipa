@@ -3,6 +3,7 @@ import { renderAgendaPage } from "./agenda.js";
 import { renderCaminhoesPage } from "./caminhoes.js";
 import { renderClientesPage } from "./clientes.js";
 import { renderPedidosPage } from "./pedidos.js";
+import { renderRotaPage } from "./rota.js";
 import { getCurrentProfile, getState } from "./state.js";
 import { isSupabaseConfigured } from "./supabase.js";
 import { renderConnectionStatus } from "./offline.js";
@@ -76,7 +77,7 @@ export function renderRoute() {
   } else if (route === "/agenda") {
     renderAgendaPage();
   } else if (route === "/rota") {
-    renderPlaceholder("Rota do motorista", "Lista de entregas do dia e atalhos de mapa entram na etapa 7.");
+    renderRotaPage();
   } else if (route === "/financeiro") {
     renderPlaceholder("Financeiro", "Pagamentos, recibos, combustivel e despesas entram nas etapas 9 e 10.");
   } else if (route === "/sem-acesso") {
