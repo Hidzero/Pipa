@@ -5,9 +5,13 @@ Execute os arquivos abaixo no SQL Editor do Supabase, nesta ordem:
 1. `schema.sql`
 2. `policies.sql`
 3. `storage.sql`
-4. `seed-example.sql` somente depois de criar o primeiro usuario em Authentication > Users
+4. `seed-empresa-demo.sql` opcional, para criar uma empresa ficticia
+5. `seed-example.sql` somente depois de criar o primeiro usuario em Authentication > Users
+6. `seed-clientes-demo.sql` opcional, para criar clientes e locais ficticios
 
 Se o schema falhar em um projeto ainda vazio por causa de uma tabela criada parcialmente, execute `reset-dev.sql` uma vez e depois rode a ordem acima novamente.
+
+Depois configure as URLs de autenticacao seguindo `auth-config.md`.
 
 O app usa `perfis.id` igual ao `auth.users.id`. Por isso o primeiro usuario precisa ser criado no Auth antes de inserir o perfil administrativo.
 

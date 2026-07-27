@@ -1,4 +1,5 @@
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
+import { getAppBaseUrl } from "./config.js";
 import { setProfile, setSession } from "./state.js";
 
 const LOCAL_SESSION_KEY = "pipa.localSession";
@@ -13,7 +14,11 @@ export async function restoreSession() {
 
     setSession(data.session);
     if (data.session?.user) {
-      await loadProfile(data.session.user.id);
+      const profile = await loadProfile(data.session.user.id);
+      if (!profile) {
+        await clearAuthState();
+        return null;
+      }
     }
     return data.session;
   }
@@ -37,7 +42,11 @@ export async function signIn(email, password) {
     }
 
     setSession(data.session);
-    await loadProfile(data.user.id);
+    const profile = await loadProfile(data.user.id);
+    if (!profile) {
+      await clearAuthState();
+      throw new Error("Usuario autenticado, mas sem perfil ativo. Vincule este usuario na tabela perfis.");
+    }
     return data.session;
   }
 
@@ -63,6 +72,10 @@ export async function signIn(email, password) {
 }
 
 export async function signOut() {
+  await clearAuthState();
+}
+
+async function clearAuthState() {
   if (isSupabaseConfigured()) {
     await supabaseClient.auth.signOut();
   }
@@ -82,7 +95,7 @@ export async function requestPasswordReset(email) {
   }
 
   const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin + window.location.pathname
+    redirectTo: getAppBaseUrl()
   });
 
   if (error) {
@@ -90,11 +103,29 @@ export async function requestPasswordReset(email) {
   }
 }
 
+export async function updatePassword(newPassword) {
+  if (!isSupabaseConfigured()) {
+    throw new Error("Configure o Supabase para alterar senha.");
+  }
+
+  if (!newPassword || newPassword.length < 6) {
+    throw new Error("A senha precisa ter pelo menos 6 caracteres.");
+  }
+
+  const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  await clearAuthState();
+}
+
 async function loadProfile(userId) {
   const { data, error } = await supabaseClient
     .from("perfis")
-    .select("id, nome, funcao, empresa_id")
+    .select("id, nome, telefone, funcao, empresa_id, ativo")
     .eq("id", userId)
+    .eq("ativo", true)
     .single();
 
   if (error) {

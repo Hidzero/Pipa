@@ -1,11 +1,21 @@
 const titleByRoute = {
   "/login": "Entrar",
+  "/nova-senha": "Nova senha",
   "/dashboard": "Painel",
   "/clientes": "Clientes",
   "/agenda": "Agenda",
   "/rota": "Rota do motorista",
-  "/financeiro": "Financeiro"
+  "/financeiro": "Financeiro",
+  "/sem-acesso": "Sem acesso"
 };
+
+const navigationItems = [
+  { route: "/dashboard", label: "Inicio", roles: ["administrador", "atendente", "motorista", "financeiro"] },
+  { route: "/clientes", label: "Clientes", roles: ["administrador", "atendente"] },
+  { route: "/agenda", label: "Agenda", roles: ["administrador", "atendente"] },
+  { route: "/rota", label: "Rota", roles: ["administrador", "atendente", "motorista"] },
+  { route: "/financeiro", label: "Financeiro", roles: ["administrador", "financeiro"] }
+];
 
 export function setPageTitle(route) {
   const pageTitle = document.querySelector("#page-title");
@@ -18,6 +28,23 @@ export function setAuthenticatedLayout(isAuthenticated) {
   document.querySelector(".topbar")?.setAttribute("data-authenticated", String(isAuthenticated));
   document.querySelector("#bottom-nav")?.classList.toggle("hidden", !isAuthenticated);
   document.querySelector("#logout-button")?.classList.toggle("hidden", !isAuthenticated);
+}
+
+export function renderNavigation(profile) {
+  const nav = document.querySelector("#bottom-nav");
+  if (!nav) {
+    return;
+  }
+
+  if (!profile) {
+    nav.innerHTML = "";
+    return;
+  }
+
+  nav.innerHTML = navigationItems
+    .filter((item) => item.roles.includes(profile.funcao))
+    .map((item) => `<a href="#${item.route}" data-route="${item.route}">${item.label}</a>`)
+    .join("");
 }
 
 export function setActiveNav(route) {

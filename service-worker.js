@@ -1,4 +1,4 @@
-const CACHE_NAME = "pipa-entregas-v1";
+const CACHE_NAME = "pipa-entregas-v2";
 
 const APP_SHELL = [
   "./",
@@ -7,13 +7,13 @@ const APP_SHELL = [
   "./css/styles.css",
   "./js/app.js",
   "./js/auth.js",
+  "./js/config.js",
   "./js/offline.js",
   "./js/router.js",
   "./js/state.js",
   "./js/supabase.js",
   "./js/ui.js",
-  "./assets/icon.svg",
-  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+  "./assets/icon.svg"
 ];
 
 self.addEventListener("install", (event) => {

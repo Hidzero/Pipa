@@ -1,10 +1,3 @@
-const DEFAULT_PROFILE = {
-  id: "local-demo-user",
-  nome: "Usuario local",
-  funcao: "administrador",
-  empresa_id: "local-demo-company"
-};
-
 const state = {
   session: null,
   profile: null,
@@ -24,7 +17,7 @@ export function setProfile(profile) {
 }
 
 export function getCurrentProfile() {
-  return state.profile || DEFAULT_PROFILE;
+  return state.profile;
 }
 
 export function setOnlineStatus(isOnline) {
