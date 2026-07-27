@@ -3,6 +3,7 @@ const titleByRoute = {
   "/nova-senha": "Nova senha",
   "/dashboard": "Painel",
   "/clientes": "Clientes",
+  "/caminhoes": "Caminhoes",
   "/agenda": "Agenda",
   "/rota": "Rota do motorista",
   "/financeiro": "Financeiro",
@@ -12,6 +13,7 @@ const titleByRoute = {
 const navigationItems = [
   { route: "/dashboard", label: "Inicio", roles: ["administrador", "atendente", "motorista", "financeiro"] },
   { route: "/clientes", label: "Clientes", roles: ["administrador", "atendente"] },
+  { route: "/caminhoes", label: "Frota", roles: ["administrador"] },
   { route: "/agenda", label: "Agenda", roles: ["administrador", "atendente"] },
   { route: "/rota", label: "Rota", roles: ["administrador", "atendente", "motorista"] },
   { route: "/financeiro", label: "Financeiro", roles: ["administrador", "financeiro"] }

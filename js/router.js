@@ -1,4 +1,5 @@
 import { signIn, requestPasswordReset, updatePassword } from "./auth.js";
+import { renderCaminhoesPage } from "./caminhoes.js";
 import { renderClientesPage } from "./clientes.js";
 import { getCurrentProfile, getState } from "./state.js";
 import { isSupabaseConfigured } from "./supabase.js";
@@ -10,6 +11,7 @@ const app = document.querySelector("#app");
 const routeAccess = {
   "/dashboard": ["administrador", "atendente", "motorista", "financeiro"],
   "/clientes": ["administrador", "atendente"],
+  "/caminhoes": ["administrador"],
   "/agenda": ["administrador", "atendente"],
   "/rota": ["administrador", "atendente", "motorista"],
   "/financeiro": ["administrador", "financeiro"]
@@ -64,6 +66,8 @@ export function renderRoute() {
     renderDashboard();
   } else if (route === "/clientes") {
     renderClientesPage();
+  } else if (route === "/caminhoes") {
+    renderCaminhoesPage();
   } else if (route === "/agenda") {
     renderPlaceholder("Agenda", "Pedidos, agenda e atribuicao de motorista entram na etapa 6.");
   } else if (route === "/rota") {
@@ -297,7 +301,8 @@ function getQuickActions(role) {
   const actions = {
     administrador: [
       { route: "/clientes", label: "Novo cliente", className: "button" },
-      { route: "/agenda", label: "Novo pedido", className: "secondary-button" },
+      { route: "/caminhoes", label: "Gerenciar frota", className: "secondary-button" },
+      { route: "/agenda", label: "Novo pedido", className: "ghost-button" },
       { route: "/rota", label: "Ver rota", className: "ghost-button" },
       { route: "/financeiro", label: "Financeiro", className: "ghost-button" }
     ],

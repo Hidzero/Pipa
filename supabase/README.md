@@ -8,6 +8,7 @@ Execute os arquivos abaixo no SQL Editor do Supabase, nesta ordem:
 4. `seed-empresa-demo.sql` opcional, para criar uma empresa ficticia
 5. `seed-example.sql` somente depois de criar o primeiro usuario em Authentication > Users
 6. `seed-clientes-demo.sql` opcional, para criar clientes e locais ficticios
+7. `seed-caminhoes-demo.sql` opcional, para criar caminhoes ficticios
 
 Se o schema falhar em um projeto ainda vazio por causa de uma tabela criada parcialmente, execute `reset-dev.sql` uma vez e depois rode a ordem acima novamente.
 
