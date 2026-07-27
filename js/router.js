@@ -1,4 +1,5 @@
 import { signIn, requestPasswordReset, updatePassword } from "./auth.js";
+import { renderClientesPage } from "./clientes.js";
 import { getCurrentProfile, getState } from "./state.js";
 import { isSupabaseConfigured } from "./supabase.js";
 import { renderConnectionStatus } from "./offline.js";
@@ -62,7 +63,7 @@ export function renderRoute() {
   } else if (route === "/dashboard") {
     renderDashboard();
   } else if (route === "/clientes") {
-    renderPlaceholder("Clientes", "Cadastro de clientes e locais de entrega entra na etapa 4.");
+    renderClientesPage();
   } else if (route === "/agenda") {
     renderPlaceholder("Agenda", "Pedidos, agenda e atribuicao de motorista entram na etapa 6.");
   } else if (route === "/rota") {
