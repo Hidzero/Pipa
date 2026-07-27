@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Pipa Entregas</title>
+  <desc id="desc">Icone de caminhao-pipa com gota de agua.</desc>
+  <rect width="512" height="512" rx="96" fill="#0f766e"/>
+  <path d="M126 310h250c22 0 40-18 40-40v-60c0-22-18-40-40-40h-70c-17 0-34-7-46-20l-28-30H126c-22 0-40 18-40 40v110c0 22 18 40 40 40Z" fill="#ecfeff"/>
+  <path d="M158 170h60l18 80h-78v-80Z" fill="#99f6e4"/>
+  <path d="M272 198c-28 0-50 22-50 50s22 50 50 50 50-22 50-50-22-50-50-50Z" fill="#14b8a6"/>
+  <path d="M272 224c9 12 22 28 22 44 0 13-10 24-22 24s-22-11-22-24c0-16 13-32 22-44Z" fill="#ecfeff"/>
+  <circle cx="168" cy="334" r="38" fill="#134e4a"/>
+  <circle cx="168" cy="334" r="16" fill="#ccfbf1"/>
+  <circle cx="346" cy="334" r="38" fill="#134e4a"/>
+  <circle cx="346" cy="334" r="16" fill="#ccfbf1"/>
+</svg>
