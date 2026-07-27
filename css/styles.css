@@ -448,6 +448,11 @@ a {
   background: var(--primary-soft);
 }
 
+.status-pill.pending {
+  color: #475467;
+  background: #f2f4f7;
+}
+
 .details-list {
   display: grid;
   gap: 10px;
@@ -581,6 +586,10 @@ a {
 
   .toolbar {
     grid-template-columns: minmax(260px, 1fr) auto auto;
+  }
+
+  .orders-toolbar {
+    grid-template-columns: minmax(260px, 1fr) 220px auto;
   }
 
   .clientes-layout,

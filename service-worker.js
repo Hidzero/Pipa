@@ -1,4 +1,4 @@
-const CACHE_NAME = "pipa-entregas-v4";
+const CACHE_NAME = "pipa-entregas-v5";
 
 const APP_SHELL = [
   "./",
@@ -11,6 +11,7 @@ const APP_SHELL = [
   "./js/clientes.js",
   "./js/config.js",
   "./js/offline.js",
+  "./js/pedidos.js",
   "./js/router.js",
   "./js/state.js",
   "./js/supabase.js",

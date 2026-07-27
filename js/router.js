@@ -1,6 +1,7 @@
 import { signIn, requestPasswordReset, updatePassword } from "./auth.js";
 import { renderCaminhoesPage } from "./caminhoes.js";
 import { renderClientesPage } from "./clientes.js";
+import { renderPedidosPage } from "./pedidos.js";
 import { getCurrentProfile, getState } from "./state.js";
 import { isSupabaseConfigured } from "./supabase.js";
 import { renderConnectionStatus } from "./offline.js";
@@ -12,6 +13,7 @@ const routeAccess = {
   "/dashboard": ["administrador", "atendente", "motorista", "financeiro"],
   "/clientes": ["administrador", "atendente"],
   "/caminhoes": ["administrador"],
+  "/pedidos": ["administrador", "atendente", "financeiro"],
   "/agenda": ["administrador", "atendente"],
   "/rota": ["administrador", "atendente", "motorista"],
   "/financeiro": ["administrador", "financeiro"]
@@ -68,6 +70,8 @@ export function renderRoute() {
     renderClientesPage();
   } else if (route === "/caminhoes") {
     renderCaminhoesPage();
+  } else if (route === "/pedidos") {
+    renderPedidosPage();
   } else if (route === "/agenda") {
     renderPlaceholder("Agenda", "Pedidos, agenda e atribuicao de motorista entram na etapa 6.");
   } else if (route === "/rota") {
@@ -302,13 +306,13 @@ function getQuickActions(role) {
     administrador: [
       { route: "/clientes", label: "Novo cliente", className: "button" },
       { route: "/caminhoes", label: "Gerenciar frota", className: "secondary-button" },
-      { route: "/agenda", label: "Novo pedido", className: "ghost-button" },
+      { route: "/pedidos", label: "Novo pedido", className: "ghost-button" },
       { route: "/rota", label: "Ver rota", className: "ghost-button" },
       { route: "/financeiro", label: "Financeiro", className: "ghost-button" }
     ],
     atendente: [
       { route: "/clientes", label: "Novo cliente", className: "button" },
-      { route: "/agenda", label: "Novo pedido", className: "secondary-button" },
+      { route: "/pedidos", label: "Novo pedido", className: "secondary-button" },
       { route: "/rota", label: "Ver rota", className: "ghost-button" }
     ],
     motorista: [
