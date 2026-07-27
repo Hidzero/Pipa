@@ -1,4 +1,4 @@
-const CACHE_NAME = "pipa-entregas-v5";
+const CACHE_NAME = "pipa-entregas-v6";
 
 const APP_SHELL = [
   "./",
@@ -6,6 +6,7 @@ const APP_SHELL = [
   "./manifest.json",
   "./css/styles.css",
   "./js/app.js",
+  "./js/agenda.js",
   "./js/auth.js",
   "./js/caminhoes.js",
   "./js/clientes.js",

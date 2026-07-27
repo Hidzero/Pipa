@@ -238,6 +238,39 @@ a {
   align-items: end;
 }
 
+.schedule-controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 14px;
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 4px;
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.segmented-control button {
+  min-height: 40px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font-weight: 800;
+}
+
+.segmented-control button.active {
+  color: var(--primary-dark);
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(19, 32, 30, 0.08);
+}
+
 .search-field {
   min-width: 0;
 }
@@ -590,6 +623,14 @@ a {
 
   .orders-toolbar {
     grid-template-columns: minmax(260px, 1fr) 220px auto;
+  }
+
+  .agenda-toolbar {
+    grid-template-columns: repeat(3, minmax(160px, 1fr)) auto;
+  }
+
+  .schedule-controls {
+    grid-template-columns: 240px 180px minmax(300px, 1fr);
   }
 
   .clientes-layout,

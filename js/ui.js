@@ -16,7 +16,7 @@ const navigationItems = [
   { route: "/clientes", label: "Clientes", roles: ["administrador", "atendente"] },
   { route: "/caminhoes", label: "Frota", roles: ["administrador"] },
   { route: "/pedidos", label: "Pedidos", roles: ["administrador", "atendente", "financeiro"] },
-  { route: "/agenda", label: "Agenda", roles: ["administrador", "atendente"] },
+  { route: "/agenda", label: "Agenda", roles: ["administrador", "atendente", "financeiro"] },
   { route: "/rota", label: "Rota", roles: ["administrador", "atendente", "motorista"] },
   { route: "/financeiro", label: "Financeiro", roles: ["administrador", "financeiro"] }
 ];

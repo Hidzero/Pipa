@@ -1,4 +1,5 @@
 import { signIn, requestPasswordReset, updatePassword } from "./auth.js";
+import { renderAgendaPage } from "./agenda.js";
 import { renderCaminhoesPage } from "./caminhoes.js";
 import { renderClientesPage } from "./clientes.js";
 import { renderPedidosPage } from "./pedidos.js";
@@ -14,7 +15,7 @@ const routeAccess = {
   "/clientes": ["administrador", "atendente"],
   "/caminhoes": ["administrador"],
   "/pedidos": ["administrador", "atendente", "financeiro"],
-  "/agenda": ["administrador", "atendente"],
+  "/agenda": ["administrador", "atendente", "financeiro"],
   "/rota": ["administrador", "atendente", "motorista"],
   "/financeiro": ["administrador", "financeiro"]
 };
@@ -73,7 +74,7 @@ export function renderRoute() {
   } else if (route === "/pedidos") {
     renderPedidosPage();
   } else if (route === "/agenda") {
-    renderPlaceholder("Agenda", "Pedidos, agenda e atribuicao de motorista entram na etapa 6.");
+    renderAgendaPage();
   } else if (route === "/rota") {
     renderPlaceholder("Rota do motorista", "Lista de entregas do dia e atalhos de mapa entram na etapa 7.");
   } else if (route === "/financeiro") {
