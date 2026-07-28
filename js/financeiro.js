@@ -1,4 +1,5 @@
 import { enqueueSupabaseMutation, renderConnectionStatus } from "./offline.js";
+import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -17,6 +18,9 @@ const financeState = {
   combustiveis: [],
   despesas: [],
   selectedPaymentId: null,
+  paymentPage: 1,
+  fuelPage: 1,
+  expensePage: 1,
   fuelFormMode: null,
   expenseFormMode: null,
   searchTerm: "",
@@ -161,11 +165,13 @@ function renderShell(canWrite) {
 function bindShellEvents() {
   document.querySelector("#financeiro-search")?.addEventListener("input", (event) => {
     financeState.searchTerm = event.target.value;
+    financeState.paymentPage = 1;
     renderPaymentsList();
   });
 
   document.querySelector("#financeiro-status-filter")?.addEventListener("change", (event) => {
     financeState.statusFilter = event.target.value;
+    financeState.paymentPage = 1;
     renderPaymentsList();
   });
 
@@ -417,6 +423,8 @@ function renderPaymentsList() {
   }
 
   const payments = getFilteredPayments();
+  financeState.paymentPage = normalizePage(financeState.paymentPage, payments.length);
+  const pagePayments = getPageItems(payments, financeState.paymentPage);
   updateCountLabel(`${payments.length} pagamento${payments.length === 1 ? "" : "s"}`);
 
   if (financeState.isLoading) {
@@ -429,7 +437,7 @@ function renderPaymentsList() {
     return;
   }
 
-  list.innerHTML = payments
+  list.innerHTML = pagePayments
     .map((payment) => {
       const cliente = getCliente(payment.cliente_id);
       return `
@@ -443,7 +451,7 @@ function renderPaymentsList() {
         </button>
       `;
     })
-    .join("");
+    .join("") + renderPagination(payments.length, financeState.paymentPage);
 
   list.querySelectorAll("[data-payment-id]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -453,6 +461,11 @@ function renderPaymentsList() {
       renderPaymentsList();
       renderSelectedPayment();
     });
+  });
+
+  bindPagination(list, (page) => {
+    financeState.paymentPage = page;
+    renderPaymentsList();
   });
 }
 
@@ -827,6 +840,8 @@ function renderFuelList() {
   }
 
   const items = financeState.combustiveis;
+  financeState.fuelPage = normalizePage(financeState.fuelPage, items.length);
+  const pageItems = getPageItems(items, financeState.fuelPage);
   updateFuelCount(`${items.length} registro${items.length === 1 ? "" : "s"}`);
 
   if (!items.length) {
@@ -834,7 +849,7 @@ function renderFuelList() {
     return;
   }
 
-  list.innerHTML = items.map((fuel) => {
+  list.innerHTML = pageItems.map((fuel) => {
     const truck = getTruck(fuel.caminhao_id);
     return `
       <article class="list-item">
@@ -860,7 +875,7 @@ function renderFuelList() {
         ` : ""}
       </article>
     `;
-  }).join("");
+  }).join("") + renderPagination(items.length, financeState.fuelPage);
 
   list.querySelectorAll("[data-fuel-edit]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -874,6 +889,11 @@ function renderFuelList() {
       await cancelFuel(button.dataset.fuelCancel);
     });
   });
+
+  bindPagination(list, (page) => {
+    financeState.fuelPage = page;
+    renderFuelList();
+  });
 }
 
 function renderExpenseList() {
@@ -883,6 +903,8 @@ function renderExpenseList() {
   }
 
   const items = financeState.despesas;
+  financeState.expensePage = normalizePage(financeState.expensePage, items.length);
+  const pageItems = getPageItems(items, financeState.expensePage);
   updateExpenseCount(`${items.length} registro${items.length === 1 ? "" : "s"}`);
 
   if (!items.length) {
@@ -890,7 +912,7 @@ function renderExpenseList() {
     return;
   }
 
-  list.innerHTML = items.map((expense) => {
+  list.innerHTML = pageItems.map((expense) => {
     const truck = getTruck(expense.caminhao_id);
     return `
       <article class="list-item">
@@ -915,7 +937,7 @@ function renderExpenseList() {
         ` : ""}
       </article>
     `;
-  }).join("");
+  }).join("") + renderPagination(items.length, financeState.expensePage);
 
   list.querySelectorAll("[data-expense-edit]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -928,6 +950,11 @@ function renderExpenseList() {
     button.addEventListener("click", async () => {
       await cancelExpense(button.dataset.expenseCancel);
     });
+  });
+
+  bindPagination(list, (page) => {
+    financeState.expensePage = page;
+    renderExpenseList();
   });
 }
 

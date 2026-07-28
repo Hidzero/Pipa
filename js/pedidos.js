@@ -1,4 +1,5 @@
 import { enqueueSupabaseMutation, renderConnectionStatus } from "./offline.js";
+import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -10,6 +11,7 @@ const orderState = {
   clientes: [],
   locais: [],
   selectedOrderId: null,
+  currentPage: 1,
   searchTerm: "",
   statusFilter: "",
   formMode: null,
@@ -123,11 +125,13 @@ function renderShell(canWrite) {
 function bindShellEvents() {
   document.querySelector("#pedidos-search")?.addEventListener("input", (event) => {
     orderState.searchTerm = event.target.value;
+    orderState.currentPage = 1;
     renderPedidosList();
   });
 
   document.querySelector("#pedidos-status-filter")?.addEventListener("change", (event) => {
     orderState.statusFilter = event.target.value;
+    orderState.currentPage = 1;
     renderPedidosList();
   });
 
@@ -210,6 +214,8 @@ function renderPedidosList() {
   }
 
   const pedidos = getFilteredPedidos();
+  orderState.currentPage = normalizePage(orderState.currentPage, pedidos.length);
+  const pagePedidos = getPageItems(pedidos, orderState.currentPage);
   updateCountLabel(`${pedidos.length} pedido${pedidos.length === 1 ? "" : "s"}`);
 
   if (orderState.isLoading) {
@@ -222,7 +228,7 @@ function renderPedidosList() {
     return;
   }
 
-  list.innerHTML = pedidos
+  list.innerHTML = pagePedidos
     .map((pedido) => {
       const cliente = getCliente(pedido.cliente_id);
       const local = getLocal(pedido.local_entrega_id);
@@ -237,7 +243,7 @@ function renderPedidosList() {
         </button>
       `;
     })
-    .join("");
+    .join("") + renderPagination(pedidos.length, orderState.currentPage);
 
   list.querySelectorAll("[data-order-id]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -246,6 +252,11 @@ function renderPedidosList() {
       renderPedidosList();
       renderSelectedOrder();
     });
+  });
+
+  bindPagination(list, (page) => {
+    orderState.currentPage = page;
+    renderPedidosList();
   });
 }
 

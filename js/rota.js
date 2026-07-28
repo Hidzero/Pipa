@@ -1,4 +1,5 @@
 import { enqueueSupabaseMutation, renderConnectionStatus } from "./offline.js";
+import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -15,6 +16,7 @@ const routeState = {
   activeDeliveryFormId: null,
   signatureHasDrawing: false,
   selectedScheduleId: null,
+  currentPage: 1,
   routeDate: toInputDate(new Date()),
   motoristaFilter: "",
   isLoading: false
@@ -123,11 +125,13 @@ function renderShell() {
 function bindShellEvents() {
   document.querySelector("#route-date")?.addEventListener("change", async (event) => {
     routeState.routeDate = event.target.value || toInputDate(new Date());
+    routeState.currentPage = 1;
     await loadRoute();
   });
 
   document.querySelector("#route-driver-filter")?.addEventListener("change", (event) => {
     routeState.motoristaFilter = event.target.value;
+    routeState.currentPage = 1;
     renderRouteList();
   });
 
@@ -288,6 +292,8 @@ function renderRouteList() {
   }
 
   const items = getFilteredRouteItems();
+  routeState.currentPage = normalizePage(routeState.currentPage, items.length);
+  const pageItems = getPageItems(items, routeState.currentPage);
   updateCountLabel(`${items.length} entrega${items.length === 1 ? "" : "s"}`);
 
   if (routeState.isLoading) {
@@ -300,7 +306,7 @@ function renderRouteList() {
     return;
   }
 
-  list.innerHTML = items
+  list.innerHTML = pageItems
     .map((item) => {
       const pedido = getPedido(item.pedido_id);
       const cliente = getCliente(pedido?.cliente_id);
@@ -316,7 +322,7 @@ function renderRouteList() {
         </button>
       `;
     })
-    .join("");
+    .join("") + renderPagination(items.length, routeState.currentPage);
 
   list.querySelectorAll("[data-route-id]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -324,6 +330,11 @@ function renderRouteList() {
       renderRouteList();
       renderSelectedRouteItem();
     });
+  });
+
+  bindPagination(list, (page) => {
+    routeState.currentPage = page;
+    renderRouteList();
   });
 }
 

@@ -1,4 +1,5 @@
 import { renderConnectionStatus } from "./offline.js";
+import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -13,6 +14,7 @@ const scheduleState = {
   motoristas: [],
   caminhoes: [],
   selectedScheduleId: null,
+  currentPage: 1,
   formMode: null,
   viewMode: "dia",
   anchorDate: toInputDate(new Date()),
@@ -157,16 +159,19 @@ function bindShellEvents() {
 
   document.querySelector("#agenda-motorista-filter")?.addEventListener("change", (event) => {
     scheduleState.motoristaFilter = event.target.value;
+    scheduleState.currentPage = 1;
     renderAgendaList();
   });
 
   document.querySelector("#agenda-caminhao-filter")?.addEventListener("change", (event) => {
     scheduleState.caminhaoFilter = event.target.value;
+    scheduleState.currentPage = 1;
     renderAgendaList();
   });
 
   document.querySelector("#agenda-status-filter")?.addEventListener("change", (event) => {
     scheduleState.statusFilter = event.target.value;
+    scheduleState.currentPage = 1;
     renderAgendaList();
   });
 
@@ -307,6 +312,8 @@ function renderAgendaList() {
   }
 
   const items = getFilteredAgenda();
+  scheduleState.currentPage = normalizePage(scheduleState.currentPage, items.length);
+  const pageItems = getPageItems(items, scheduleState.currentPage);
   updateCountLabel(`${items.length} entrega${items.length === 1 ? "" : "s"}`);
 
   if (scheduleState.isLoading) {
@@ -319,7 +326,7 @@ function renderAgendaList() {
     return;
   }
 
-  list.innerHTML = items
+  list.innerHTML = pageItems
     .map((item) => {
       const pedido = getPedido(item.pedido_id);
       const cliente = getCliente(pedido?.cliente_id);
@@ -335,7 +342,7 @@ function renderAgendaList() {
         </button>
       `;
     })
-    .join("");
+    .join("") + renderPagination(items.length, scheduleState.currentPage);
 
   list.querySelectorAll("[data-schedule-id]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -344,6 +351,11 @@ function renderAgendaList() {
       renderAgendaList();
       renderSelectedSchedule();
     });
+  });
+
+  bindPagination(list, (page) => {
+    scheduleState.currentPage = page;
+    renderAgendaList();
   });
 }
 

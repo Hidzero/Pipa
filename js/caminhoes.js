@@ -1,4 +1,5 @@
 import { renderConnectionStatus } from "./offline.js";
+import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -9,6 +10,7 @@ const truckState = {
   caminhoes: [],
   motoristas: [],
   selectedTruckId: null,
+  currentPage: 1,
   searchTerm: "",
   showInactive: false,
   formMode: null,
@@ -97,6 +99,7 @@ function renderShell() {
 function bindShellEvents() {
   document.querySelector("#caminhoes-search")?.addEventListener("input", (event) => {
     truckState.searchTerm = event.target.value;
+    truckState.currentPage = 1;
     renderCaminhoesList();
   });
 
@@ -172,6 +175,8 @@ function renderCaminhoesList() {
   }
 
   const caminhoes = getFilteredCaminhoes();
+  truckState.currentPage = normalizePage(truckState.currentPage, caminhoes.length);
+  const pageCaminhoes = getPageItems(caminhoes, truckState.currentPage);
   updateCountLabel(`${caminhoes.length} caminhao${caminhoes.length === 1 ? "" : "es"}`);
 
   if (truckState.isLoading) {
@@ -184,7 +189,7 @@ function renderCaminhoesList() {
     return;
   }
 
-  list.innerHTML = caminhoes
+  list.innerHTML = pageCaminhoes
     .map((truck) => `
       <button class="list-item list-button ${truck.id === truckState.selectedTruckId ? "selected" : ""}" type="button" data-truck-id="${truck.id}">
         <span class="item-main">
@@ -195,7 +200,7 @@ function renderCaminhoesList() {
         <span class="status-pill ${getStatusClass(truck)}">${formatTruckStatus(truck.status)}</span>
       </button>
     `)
-    .join("");
+    .join("") + renderPagination(caminhoes.length, truckState.currentPage);
 
   list.querySelectorAll("[data-truck-id]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -204,6 +209,11 @@ function renderCaminhoesList() {
       renderCaminhoesList();
       renderSelectedTruck();
     });
+  });
+
+  bindPagination(list, (page) => {
+    truckState.currentPage = page;
+    renderCaminhoesList();
   });
 }
 

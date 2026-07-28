@@ -1,4 +1,5 @@
 import { enqueueSupabaseMutation, renderConnectionStatus } from "./offline.js";
+import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -9,6 +10,7 @@ const customerState = {
   clientes: [],
   locais: [],
   selectedClientId: null,
+  currentPage: 1,
   searchTerm: "",
   showInactive: false,
   clientFormMode: null,
@@ -100,6 +102,7 @@ function renderShell() {
 function bindShellEvents() {
   document.querySelector("#clientes-search")?.addEventListener("input", (event) => {
     customerState.searchTerm = event.target.value;
+    customerState.currentPage = 1;
     renderClientesList();
   });
 
@@ -156,6 +159,8 @@ function renderClientesList() {
   }
 
   const clientes = getFilteredClientes();
+  customerState.currentPage = normalizePage(customerState.currentPage, clientes.length);
+  const pageClientes = getPageItems(clientes, customerState.currentPage);
   updateCountLabel(`${clientes.length} cliente${clientes.length === 1 ? "" : "s"}`);
 
   if (customerState.isLoading) {
@@ -168,7 +173,7 @@ function renderClientesList() {
     return;
   }
 
-  list.innerHTML = clientes
+  list.innerHTML = pageClientes
     .map((cliente) => `
       <button class="list-item list-button ${cliente.id === customerState.selectedClientId ? "selected" : ""}" type="button" data-client-id="${cliente.id}">
         <span class="item-main">
@@ -179,7 +184,7 @@ function renderClientesList() {
         <span class="status-pill ${cliente.ativo ? "active" : "inactive"}">${cliente.ativo ? "Ativo" : "Inativo"}</span>
       </button>
     `)
-    .join("");
+    .join("") + renderPagination(clientes.length, customerState.currentPage);
 
   list.querySelectorAll("[data-client-id]").forEach((button) => {
     button.addEventListener("click", async () => {
@@ -189,6 +194,11 @@ function renderClientesList() {
       renderClientesList();
       await renderSelectedClient();
     });
+  });
+
+  bindPagination(list, (page) => {
+    customerState.currentPage = page;
+    renderClientesList();
   });
 }
 
