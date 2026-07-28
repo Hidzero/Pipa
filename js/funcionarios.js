@@ -1,3 +1,4 @@
+import { requestPasswordReset } from "./auth.js";
 import { renderConnectionStatus } from "./offline.js";
 import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
 import { canManageCompany, formatAccessLevel, formatOperationalRole } from "./permissions.js";
@@ -284,6 +285,7 @@ function renderSelectedEmployee() {
           <p class="field-hint">${escapeHtml(formatAccessLevel(funcionario))} · ${escapeHtml(formatOperationalRole(funcionario))}</p>
         </div>
         <div class="inline-actions">
+          <button class="ghost-button compact-button" type="button" id="resend-access-button">Reenviar acesso</button>
           <button class="ghost-button compact-button" type="button" id="edit-employee-button">Editar</button>
           <button class="ghost-button compact-button danger-text" type="button" id="toggle-employee-button">${funcionario.ativo ? "Inativar" : "Reativar"}</button>
         </div>
@@ -310,6 +312,10 @@ function renderSelectedEmployee() {
 
   document.querySelector("#toggle-employee-button")?.addEventListener("click", async () => {
     await toggleEmployee(funcionario);
+  });
+
+  document.querySelector("#resend-access-button")?.addEventListener("click", async () => {
+    await resendEmployeeAccess(funcionario);
   });
 
   document.querySelector("#new-driver-assignment-button")?.addEventListener("click", () => {
@@ -485,7 +491,7 @@ async function saveEmployee(formData, existingEmployee = {}) {
     return;
   }
 
-  showToast("Funcionario criado.");
+  showToast("Funcionario criado. Use Reenviar acesso se quiser que ele defina nova senha.");
   employeeState.formMode = null;
   document.querySelector("#employee-form-container").innerHTML = "";
   await loadFuncionarios();
@@ -521,6 +527,30 @@ async function updateEmployee(existingEmployee, payload) {
   employeeState.formMode = null;
   document.querySelector("#employee-form-container").innerHTML = "";
   await loadFuncionarios();
+}
+
+async function resendEmployeeAccess(funcionario) {
+  if (!navigator.onLine) {
+    showToast("Reenvio de acesso precisa de internet.");
+    return;
+  }
+
+  if (!funcionario.email) {
+    showToast("Este funcionario nao possui e-mail cadastrado.");
+    return;
+  }
+
+  const confirmed = window.confirm(`Enviar e-mail de redefinicao de senha para ${funcionario.email}?`);
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    await requestPasswordReset(funcionario.email);
+    showToast("E-mail de acesso enviado.");
+  } catch (error) {
+    showToast(error.message || "Nao foi possivel reenviar o acesso.");
+  }
 }
 
 async function toggleEmployee(funcionario) {
