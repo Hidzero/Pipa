@@ -386,7 +386,8 @@ function getQuickActions(role) {
       { route: "/caminhoes", label: "Gerenciar frota", className: "secondary-button" },
       { route: "/pedidos", label: "Novo pedido", className: "ghost-button" },
       { route: "/rota", label: "Ver rota", className: "ghost-button" },
-      { route: "/financeiro", label: "Financeiro", className: "ghost-button" }
+      { route: "/financeiro", label: "Financeiro", className: "ghost-button" },
+      { route: "/relatorios", label: "Relatorios", className: "ghost-button" }
     ],
     atendente: [
       { route: "/clientes", label: "Novo cliente", className: "button" },
@@ -397,7 +398,8 @@ function getQuickActions(role) {
       { route: "/rota", label: "Ver entregas de hoje", className: "button" }
     ],
     financeiro: [
-      { route: "/financeiro", label: "Ver financeiro", className: "button" }
+      { route: "/financeiro", label: "Ver financeiro", className: "button" },
+      { route: "/relatorios", label: "Ver relatorios", className: "secondary-button" }
     ]
   };
 

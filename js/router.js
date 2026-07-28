@@ -5,6 +5,7 @@ import { renderClientesPage } from "./clientes.js";
 import { renderDashboardPage } from "./dashboard.js";
 import { renderFinanceiroPage } from "./financeiro.js";
 import { renderPedidosPage } from "./pedidos.js";
+import { renderRelatoriosPage } from "./relatorios.js";
 import { renderRotaPage } from "./rota.js";
 import { getCurrentProfile, getState } from "./state.js";
 import { isSupabaseConfigured } from "./supabase.js";
@@ -20,7 +21,8 @@ const routeAccess = {
   "/pedidos": ["administrador", "atendente", "financeiro"],
   "/agenda": ["administrador", "atendente", "financeiro"],
   "/rota": ["administrador", "atendente", "motorista"],
-  "/financeiro": ["administrador", "financeiro"]
+  "/financeiro": ["administrador", "financeiro"],
+  "/relatorios": ["administrador", "financeiro"]
 };
 
 const protectedRoutes = new Set(Object.keys(routeAccess));
@@ -82,6 +84,8 @@ export function renderRoute() {
     renderRotaPage();
   } else if (route === "/financeiro") {
     renderFinanceiroPage();
+  } else if (route === "/relatorios") {
+    renderRelatoriosPage();
   } else if (route === "/sem-acesso") {
     renderAccessDenied();
   } else {
@@ -312,7 +316,8 @@ function getQuickActions(role) {
       { route: "/caminhoes", label: "Gerenciar frota", className: "secondary-button" },
       { route: "/pedidos", label: "Novo pedido", className: "ghost-button" },
       { route: "/rota", label: "Ver rota", className: "ghost-button" },
-      { route: "/financeiro", label: "Financeiro", className: "ghost-button" }
+      { route: "/financeiro", label: "Financeiro", className: "ghost-button" },
+      { route: "/relatorios", label: "Relatorios", className: "ghost-button" }
     ],
     atendente: [
       { route: "/clientes", label: "Novo cliente", className: "button" },
@@ -323,7 +328,8 @@ function getQuickActions(role) {
       { route: "/rota", label: "Ver entregas de hoje", className: "button" }
     ],
     financeiro: [
-      { route: "/financeiro", label: "Ver financeiro", className: "button" }
+      { route: "/financeiro", label: "Ver financeiro", className: "button" },
+      { route: "/relatorios", label: "Ver relatorios", className: "secondary-button" }
     ]
   };
 

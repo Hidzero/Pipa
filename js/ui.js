@@ -8,6 +8,7 @@ const titleByRoute = {
   "/agenda": "Agenda",
   "/rota": "Rota do motorista",
   "/financeiro": "Financeiro",
+  "/relatorios": "Relatorios",
   "/sem-acesso": "Sem acesso"
 };
 
@@ -18,7 +19,8 @@ const navigationItems = [
   { route: "/pedidos", label: "Pedidos", roles: ["administrador", "atendente", "financeiro"] },
   { route: "/agenda", label: "Agenda", roles: ["administrador", "atendente", "financeiro"] },
   { route: "/rota", label: "Rota", roles: ["administrador", "atendente", "motorista"] },
-  { route: "/financeiro", label: "Financeiro", roles: ["administrador", "financeiro"] }
+  { route: "/financeiro", label: "Financeiro", roles: ["administrador", "financeiro"] },
+  { route: "/relatorios", label: "Relatorios", roles: ["administrador", "financeiro"] }
 ];
 
 export function setPageTitle(route) {
