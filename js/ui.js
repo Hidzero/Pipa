@@ -1,8 +1,11 @@
+import { canAccessRouteByProfile } from "./permissions.js";
+
 const titleByRoute = {
   "/login": "Entrar",
   "/nova-senha": "Nova senha",
   "/dashboard": "Painel",
   "/clientes": "Clientes",
+  "/funcionarios": "Funcionarios",
   "/caminhoes": "Caminhoes",
   "/pedidos": "Pedidos",
   "/agenda": "Agenda",
@@ -13,14 +16,15 @@ const titleByRoute = {
 };
 
 const navigationItems = [
-  { route: "/dashboard", label: "Inicio", roles: ["administrador", "atendente", "motorista", "financeiro"] },
-  { route: "/clientes", label: "Clientes", roles: ["administrador", "atendente"] },
-  { route: "/caminhoes", label: "Frota", roles: ["administrador"] },
-  { route: "/pedidos", label: "Pedidos", roles: ["administrador", "atendente", "financeiro"] },
-  { route: "/agenda", label: "Agenda", roles: ["administrador", "atendente", "financeiro"] },
-  { route: "/rota", label: "Rota", roles: ["administrador", "atendente", "motorista"] },
-  { route: "/financeiro", label: "Financeiro", roles: ["administrador", "financeiro"] },
-  { route: "/relatorios", label: "Relatorios", roles: ["administrador", "financeiro"] }
+  { route: "/dashboard", label: "Inicio" },
+  { route: "/clientes", label: "Clientes" },
+  { route: "/funcionarios", label: "Equipe" },
+  { route: "/caminhoes", label: "Frota" },
+  { route: "/pedidos", label: "Pedidos" },
+  { route: "/agenda", label: "Agenda" },
+  { route: "/rota", label: "Rota" },
+  { route: "/financeiro", label: "Financeiro" },
+  { route: "/relatorios", label: "Relatorios" }
 ];
 
 export function setPageTitle(route) {
@@ -48,7 +52,7 @@ export function renderNavigation(profile) {
   }
 
   nav.innerHTML = navigationItems
-    .filter((item) => item.roles.includes(profile.funcao))
+    .filter((item) => canAccessRouteByProfile(item.route, profile))
     .map((item) => `<a href="#${item.route}" data-route="${item.route}">${item.label}</a>`)
     .join("");
 }

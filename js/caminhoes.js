@@ -1,5 +1,6 @@
 import { renderConnectionStatus } from "./offline.js";
 import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
+import { canManageCompany, canManageTruckAssignments } from "./permissions.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -77,7 +78,7 @@ function renderShell() {
             <input id="caminhoes-show-inactive" type="checkbox" ${truckState.showInactive ? "checked" : ""}>
             Mostrar inativos
           </label>
-          <button class="button" type="button" id="new-truck-button">Novo caminhao</button>
+          ${canWriteTrucks() ? `<button class="button" type="button" id="new-truck-button">Novo caminhao</button>` : ""}
         </div>
       </section>
 
@@ -262,6 +263,8 @@ function renderSelectedTruck() {
   }
 
   const activeAssignment = getActiveAssignment(truck.id);
+  const canWriteTruck = canWriteTrucks();
+  const canWriteAssignments = canWriteTruckAssignments();
 
   detail.innerHTML = `
     <section class="panel">
@@ -270,10 +273,10 @@ function renderSelectedTruck() {
           <h2 class="panel-title">${escapeHtml(truck.nome)}</h2>
           <p class="field-hint">${escapeHtml(truck.placa)} · ${formatTruckStatus(truck.status)} · ${truck.ativo ? "Ativo" : "Inativo"}</p>
         </div>
-        <div class="inline-actions">
+        ${canWriteTruck ? `<div class="inline-actions">
           <button class="ghost-button compact-button" type="button" id="edit-truck-button">Editar</button>
           <button class="ghost-button compact-button danger-text" type="button" id="toggle-truck-button">${truck.ativo ? "Inativar" : "Reativar"}</button>
-        </div>
+        </div>` : ""}
       </div>
 
       <dl class="details-list">
@@ -292,7 +295,7 @@ function renderSelectedTruck() {
           <h2 class="panel-title">Motoristas do caminhao</h2>
           <p class="field-hint">Historico formal de quem ficou neste veiculo.</p>
         </div>
-        <button class="button compact-button" type="button" id="new-assignment-button">Novo vinculo</button>
+        ${canWriteAssignments ? `<button class="button compact-button" type="button" id="new-assignment-button">Novo vinculo</button>` : ""}
       </div>
       <div id="assignment-form-container"></div>
       ${renderAssignments(truck.id)}
@@ -356,7 +359,7 @@ function renderAssignments(truckId) {
           <dl class="details-list compact-details">
             <div><dt>Observacoes</dt><dd>${escapeHtml(assignment.observacoes || "-")}</dd></div>
           </dl>
-          ${assignment.ativo ? `
+          ${assignment.ativo && canWriteTruckAssignments() ? `
             <div class="inline-actions">
               <button class="ghost-button compact-button danger-text" type="button" data-end-assignment="${assignment.id}">Encerrar vinculo</button>
             </div>
@@ -389,6 +392,11 @@ function renderAssignmentForm() {
 }
 
 function renderTruckForm() {
+  if (!canWriteTrucks()) {
+    showToast("Apenas administrador pode cadastrar ou editar caminhoes.");
+    return;
+  }
+
   const container = document.querySelector("#truck-form-container");
   if (!container) {
     return;
@@ -431,6 +439,11 @@ function renderTruckForm() {
 }
 
 async function saveTruck(formData, existingTruck = {}) {
+  if (!canWriteTrucks()) {
+    showToast("Apenas administrador pode salvar caminhoes.");
+    return;
+  }
+
   const profile = getCurrentProfile();
   const payload = {
     nome: requiredText(formData, "nome", "Informe o nome do caminhao."),
@@ -484,6 +497,11 @@ async function saveTruck(formData, existingTruck = {}) {
 }
 
 async function saveAssignment(truck, formData) {
+  if (!canWriteTruckAssignments()) {
+    showToast("Apenas administrador ou supervisor pode vincular motoristas.");
+    return;
+  }
+
   const profile = getCurrentProfile();
   const motoristaId = requiredText(formData, "motorista_id", "Selecione o motorista.");
   const dataInicio = requiredText(formData, "data_inicio", "Informe a data inicial.");
@@ -570,6 +588,11 @@ async function closeActivePrincipalAssignments(truckId, nextStartDate) {
 }
 
 async function endAssignment(id) {
+  if (!canWriteTruckAssignments()) {
+    showToast("Apenas administrador ou supervisor pode encerrar vinculos.");
+    return;
+  }
+
   const profile = getCurrentProfile();
   const assignment = truckState.vinculos.find((item) => item.id === id);
   if (!assignment) {
@@ -658,6 +681,11 @@ async function syncResponsibleAssignment(truckId, motoristaId) {
 }
 
 async function toggleTruck(truck) {
+  if (!canWriteTrucks()) {
+    showToast("Apenas administrador pode alterar status do caminhao.");
+    return;
+  }
+
   const profile = getCurrentProfile();
   const nextActive = !truck.ativo;
   const { error } = await supabaseClient
@@ -692,6 +720,14 @@ function getFilteredCaminhoes() {
 
 function getSelectedTruck() {
   return truckState.caminhoes.find((truck) => truck.id === truckState.selectedTruckId) || null;
+}
+
+function canWriteTrucks() {
+  return canManageCompany(getCurrentProfile());
+}
+
+function canWriteTruckAssignments() {
+  return canManageTruckAssignments(getCurrentProfile());
 }
 
 function getAssignmentsForTruck(truckId) {

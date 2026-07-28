@@ -4,27 +4,18 @@ import { renderCaminhoesPage } from "./caminhoes.js";
 import { renderClientesPage } from "./clientes.js";
 import { renderDashboardPage } from "./dashboard.js";
 import { renderFinanceiroPage } from "./financeiro.js";
+import { renderFuncionariosPage } from "./funcionarios.js";
 import { renderPedidosPage } from "./pedidos.js";
 import { renderRelatoriosPage } from "./relatorios.js";
 import { renderRotaPage } from "./rota.js";
+import { canAccessRouteByProfile } from "./permissions.js";
 import { getCurrentProfile, getState } from "./state.js";
 import { isSupabaseConfigured } from "./supabase.js";
 import { renderNavigation, setActiveNav, setAuthenticatedLayout, setPageTitle, showToast } from "./ui.js";
 
 const app = document.querySelector("#app");
 
-const routeAccess = {
-  "/dashboard": ["administrador", "atendente", "motorista", "financeiro"],
-  "/clientes": ["administrador", "atendente"],
-  "/caminhoes": ["administrador"],
-  "/pedidos": ["administrador", "atendente", "financeiro"],
-  "/agenda": ["administrador", "atendente", "financeiro"],
-  "/rota": ["administrador", "atendente", "motorista"],
-  "/financeiro": ["administrador", "financeiro"],
-  "/relatorios": ["administrador", "financeiro"]
-};
-
-const protectedRoutes = new Set(Object.keys(routeAccess));
+const protectedRoutes = new Set(["/dashboard", "/clientes", "/funcionarios", "/caminhoes", "/pedidos", "/agenda", "/rota", "/financeiro", "/relatorios"]);
 
 export function getRoute() {
   const hash = window.location.hash.replace("#", "");
@@ -56,7 +47,7 @@ export function renderRoute() {
     route = "/sem-acesso";
   }
 
-  if (state.session && protectedRoutes.has(route) && profile && !canAccessRoute(route, profile.funcao)) {
+  if (state.session && protectedRoutes.has(route) && profile && !canAccessRouteByProfile(route, profile)) {
     route = "/sem-acesso";
   }
 
@@ -73,6 +64,8 @@ export function renderRoute() {
     renderDashboardPage();
   } else if (route === "/clientes") {
     renderClientesPage();
+  } else if (route === "/funcionarios") {
+    renderFuncionariosPage();
   } else if (route === "/caminhoes") {
     renderCaminhoesPage();
   } else if (route === "/pedidos") {
@@ -227,8 +220,4 @@ function renderAccessDenied() {
   document.querySelector("#access-help-button")?.addEventListener("click", () => {
     showToast("Confira se este usuario esta vinculado na tabela perfis e se ativo = true.");
   });
-}
-
-function canAccessRoute(route, role) {
-  return routeAccess[route]?.includes(role) || false;
 }

@@ -1,5 +1,6 @@
 import { enqueueSupabaseMutation, renderConnectionStatus } from "./offline.js";
 import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
+import { isDriverEmployee } from "./permissions.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -59,7 +60,7 @@ export async function renderRotaPage() {
     return;
   }
 
-  if (profile.funcao === "motorista") {
+  if (isDriverEmployee(profile)) {
     routeState.motoristaFilter = profile.id;
   }
 
@@ -71,7 +72,7 @@ export async function renderRotaPage() {
 
 function renderShell() {
   const profile = getCurrentProfile();
-  const isDriver = profile?.funcao === "motorista";
+  const driverView = isDriverEmployee(profile);
 
   app.innerHTML = `
     <section class="section-stack">
@@ -92,7 +93,7 @@ function renderShell() {
             <label for="route-date">Data</label>
             <input id="route-date" type="date" value="${routeState.routeDate}">
           </div>
-          ${isDriver ? "" : selectField("route-driver-filter", "Motorista", routeState.motoristaFilter, getDriverOptions("Todos os motoristas"))}
+          ${driverView ? "" : selectField("route-driver-filter", "Motorista", routeState.motoristaFilter, getDriverOptions("Todos os motoristas"))}
           <div class="button-row">
             <button class="ghost-button compact-button" type="button" id="previous-route-date">Anterior</button>
             <button class="ghost-button compact-button" type="button" id="today-route-date">Hoje</button>
@@ -261,7 +262,7 @@ async function loadRoute() {
     .order("ordem", { ascending: true })
     .order("data_inicio", { ascending: true });
 
-  if (profile.funcao === "motorista") {
+  if (isDriverEmployee(profile)) {
     query = query.eq("motorista_id", profile.id);
   }
 

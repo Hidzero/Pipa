@@ -1,5 +1,6 @@
 import { renderConnectionStatus } from "./offline.js";
 import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
+import { canManageOperations } from "./permissions.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -775,8 +776,7 @@ function buildWhatsAppLink(phone, name, item) {
 }
 
 function canWriteSchedule() {
-  const role = getCurrentProfile()?.funcao;
-  return role === "administrador" || role === "atendente";
+  return canManageOperations(getCurrentProfile());
 }
 
 function requiredText(formData, field, message) {

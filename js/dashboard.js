@@ -1,4 +1,5 @@
 import { renderConnectionStatus } from "./offline.js";
+import { canViewFinance, formatAccessLevel, formatOperationalRole, isAdmin, isDriver, isDriverEmployee, isSupervisor } from "./permissions.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -59,7 +60,7 @@ function renderDashboard(profile, data) {
   const metrics = buildMetrics(profile, data);
   const nextDeliveries = getNextDeliveries(data);
   const alerts = buildAlerts(profile, data);
-  const actions = getQuickActions(profile.funcao);
+  const actions = getQuickActions(profile);
 
   app.innerHTML = `
     <section class="section-stack">
@@ -113,7 +114,7 @@ async function loadDashboardData(profile) {
   const tomorrowStart = addDays(todayStart, 1);
   const nextWeek = addDays(todayStart, 7);
   const todayKey = toInputDate(now);
-  const canSeeFinancials = profile.funcao !== "motorista";
+  const canSeeFinancials = canViewFinance(profile);
 
   const [
     agendaToday,
@@ -160,7 +161,7 @@ async function loadAgenda(profile, start, end) {
     .order("ordem", { ascending: true })
     .limit(100);
 
-  if (profile.funcao === "motorista") {
+  if (isDriverEmployee(profile)) {
     query = query.eq("motorista_id", profile.id);
   }
 
@@ -188,7 +189,7 @@ async function loadEntregasToday(profile, start, end) {
     .order("created_at", { ascending: false })
     .limit(200);
 
-  if (profile.funcao === "motorista") {
+  if (isDriverEmployee(profile)) {
     query = query.eq("motorista_id", profile.id);
   }
 
@@ -298,7 +299,7 @@ function buildAlerts(profile, data) {
     alerts.push(`${pendingOrders} pedido${pendingOrders === 1 ? "" : "s"} aguardando confirmacao.`);
   }
 
-  if (profile.funcao !== "motorista" && unassignedToday > 0) {
+  if (!isDriverEmployee(profile) && unassignedToday > 0) {
     alerts.push(`${unassignedToday} entrega${unassignedToday === 1 ? "" : "s"} de hoje sem motorista ou caminhao.`);
   }
 
@@ -360,7 +361,7 @@ function statusBar(profile) {
     <div class="status-bar">
       <div>
         <strong>${escapeHtml(profile.nome)}</strong>
-        <div>${formatRole(profile.funcao)}</div>
+        <div>${formatAccessLevel(profile)} · ${formatOperationalRole(profile)}</div>
       </div>
       <div>
         <span class="connection-status" id="connection-status">Online</span>
@@ -379,31 +380,42 @@ function metricCard(label, value) {
   `;
 }
 
-function getQuickActions(role) {
-  const actions = {
-    administrador: [
+function getQuickActions(profile) {
+  if (isAdmin(profile)) {
+    return [
       { route: "/clientes", label: "Novo cliente", className: "button" },
-      { route: "/caminhoes", label: "Gerenciar frota", className: "secondary-button" },
+      { route: "/funcionarios", label: "Gerenciar equipe", className: "secondary-button" },
+      { route: "/caminhoes", label: "Gerenciar frota", className: "ghost-button" },
       { route: "/pedidos", label: "Novo pedido", className: "ghost-button" },
       { route: "/rota", label: "Ver rota", className: "ghost-button" },
       { route: "/financeiro", label: "Financeiro", className: "ghost-button" },
       { route: "/relatorios", label: "Relatorios", className: "ghost-button" }
-    ],
-    atendente: [
+    ];
+  }
+
+  if (isSupervisor(profile)) {
+    return [
       { route: "/clientes", label: "Novo cliente", className: "button" },
       { route: "/pedidos", label: "Novo pedido", className: "secondary-button" },
-      { route: "/rota", label: "Ver rota", className: "ghost-button" }
-    ],
-    motorista: [
-      { route: "/rota", label: "Ver entregas de hoje", className: "button" }
-    ],
-    financeiro: [
+      { route: "/agenda", label: "Organizar agenda", className: "ghost-button" },
+      { route: "/caminhoes", label: "Ver frota", className: "ghost-button" }
+    ];
+  }
+
+  if (canViewFinance(profile)) {
+    return [
       { route: "/financeiro", label: "Ver financeiro", className: "button" },
       { route: "/relatorios", label: "Ver relatorios", className: "secondary-button" }
-    ]
-  };
+    ];
+  }
 
-  return actions[role] || [];
+  if (isDriver(profile)) {
+    return [
+      { route: "/rota", label: "Ver entregas de hoje", className: "button" }
+    ];
+  }
+
+  return [];
 }
 
 function getPedido(data, id) {
@@ -435,17 +447,6 @@ function addDays(date, days) {
 function toInputDate(date) {
   const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return localDate.toISOString().slice(0, 10);
-}
-
-function formatRole(role) {
-  const labels = {
-    administrador: "Administrador",
-    atendente: "Atendente",
-    motorista: "Motorista",
-    financeiro: "Financeiro"
-  };
-
-  return labels[role] || "Usuario";
 }
 
 function formatOrderStatus(status) {

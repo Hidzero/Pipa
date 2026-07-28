@@ -1,5 +1,6 @@
 import { enqueueSupabaseMutation, renderConnectionStatus } from "./offline.js";
 import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
+import { canViewFinance } from "./permissions.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -1354,8 +1355,7 @@ function getReceipt(payment) {
 }
 
 function canWriteFinance() {
-  const role = getCurrentProfile()?.funcao;
-  return role === "administrador" || role === "financeiro";
+  return canViewFinance(getCurrentProfile());
 }
 
 function updateCountLabel(text) {

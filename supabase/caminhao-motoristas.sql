@@ -1,5 +1,5 @@
 -- Historico de vinculo motorista x caminhao
--- Execute este arquivo no SQL Editor do Supabase.
+-- Execute este arquivo no SQL Editor do Supabase depois de user-access-levels.sql.
 
 create table if not exists public.caminhao_motoristas (
   id uuid primary key default gen_random_uuid(),
@@ -43,7 +43,10 @@ for select
 to authenticated
 using (
   empresa_id = public.current_user_empresa_id()
-  and public.has_role(array['administrador', 'atendente', 'motorista', 'financeiro']::public.user_role[])
+  and (
+    public.has_role(array['administrador', 'atendente', 'motorista', 'financeiro']::public.user_role[])
+    or public.has_access(array['supervisor']::public.nivel_acesso[])
+  )
 );
 
 drop policy if exists caminhao_motoristas_insert_admin on public.caminhao_motoristas;
@@ -53,7 +56,7 @@ for insert
 to authenticated
 with check (
   empresa_id = public.current_user_empresa_id()
-  and public.has_role(array['administrador']::public.user_role[])
+  and public.has_access(array['administrador', 'supervisor']::public.nivel_acesso[])
 );
 
 drop policy if exists caminhao_motoristas_update_admin on public.caminhao_motoristas;
@@ -63,11 +66,11 @@ for update
 to authenticated
 using (
   empresa_id = public.current_user_empresa_id()
-  and public.has_role(array['administrador']::public.user_role[])
+  and public.has_access(array['administrador', 'supervisor']::public.nivel_acesso[])
 )
 with check (
   empresa_id = public.current_user_empresa_id()
-  and public.has_role(array['administrador']::public.user_role[])
+  and public.has_access(array['administrador', 'supervisor']::public.nivel_acesso[])
 );
 
 grant select, insert, update on public.caminhao_motoristas to authenticated;

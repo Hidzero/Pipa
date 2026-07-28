@@ -61,6 +61,8 @@ export async function signIn(email, password) {
       id: "local-demo-user",
       nome: "Usuario local",
       funcao: "administrador",
+      nivel_acesso: "administrador",
+      cargo: "Administrador da empresa",
       empresa_id: "local-demo-company"
     }
   };
@@ -121,12 +123,23 @@ export async function updatePassword(newPassword) {
 }
 
 async function loadProfile(userId) {
-  const { data, error } = await supabaseClient
+  let { data, error } = await supabaseClient
     .from("perfis")
-    .select("id, nome, telefone, funcao, empresa_id, ativo")
+    .select("id, nome, telefone, funcao, nivel_acesso, cargo, empresa_id, ativo")
     .eq("id", userId)
     .eq("ativo", true)
     .single();
+
+  if (error?.code === "42703" || error?.code === "PGRST204") {
+    const fallback = await supabaseClient
+      .from("perfis")
+      .select("id, nome, telefone, funcao, empresa_id, ativo")
+      .eq("id", userId)
+      .eq("ativo", true)
+      .single();
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     console.warn("Perfil nao encontrado", error);
@@ -134,6 +147,8 @@ async function loadProfile(userId) {
     return null;
   }
 
+  data.nivel_acesso = data.nivel_acesso || (data.funcao === "administrador" ? "administrador" : "funcionario");
+  data.cargo = data.cargo || data.funcao;
   setProfile(data);
   return data;
 }
