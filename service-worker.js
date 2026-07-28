@@ -1,4 +1,5 @@
-const CACHE_NAME = "pipa-entregas-v13";
+const CACHE_NAME = "pipa-entregas-v14";
+const SUPABASE_CDN = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
 
 const APP_SHELL = [
   "./",
@@ -21,7 +22,9 @@ const APP_SHELL = [
   "./js/state.js",
   "./js/supabase.js",
   "./js/ui.js",
-  "./assets/icon.svg"
+  "./assets/icon.svg",
+  "./assets/icon-192.png",
+  "./assets/icon-512.png"
 ];
 
 self.addEventListener("install", (event) => {
@@ -47,6 +50,15 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  const url = new URL(event.request.url);
+  const isSameOrigin = url.origin === self.location.origin;
+  const isStaticCdn = event.request.url === SUPABASE_CDN;
+
+  if (!isSameOrigin && !isStaticCdn) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
@@ -59,7 +71,7 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseCopy));
           return response;
         })
-        .catch(() => caches.match("./index.html"));
+        .catch(() => isSameOrigin ? caches.match("./index.html") : caches.match(SUPABASE_CDN));
     })
   );
 });

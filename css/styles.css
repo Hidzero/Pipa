@@ -94,6 +94,10 @@ a {
   padding: 18px;
 }
 
+.app-content:focus {
+  outline: none;
+}
+
 .auth-layout {
   display: grid;
   gap: 18px;
@@ -642,19 +646,27 @@ a {
   bottom: 0;
   left: 0;
   z-index: 30;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(54px, 1fr));
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
   min-height: calc(var(--nav-height) + env(safe-area-inset-bottom));
   padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
   background: rgba(255, 255, 255, 0.94);
   border-top: 1px solid var(--line);
   backdrop-filter: blur(16px);
+  scrollbar-width: none;
+}
+
+.bottom-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .bottom-nav a {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
+  min-width: 76px;
   min-height: 48px;
   padding: 0 6px;
   color: var(--muted);

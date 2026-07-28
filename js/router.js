@@ -9,7 +9,6 @@ import { renderRelatoriosPage } from "./relatorios.js";
 import { renderRotaPage } from "./rota.js";
 import { getCurrentProfile, getState } from "./state.js";
 import { isSupabaseConfigured } from "./supabase.js";
-import { renderConnectionStatus } from "./offline.js";
 import { renderNavigation, setActiveNav, setAuthenticatedLayout, setPageTitle, showToast } from "./ui.js";
 
 const app = document.querySelector("#app");
@@ -202,81 +201,6 @@ function renderLogin() {
   });
 }
 
-function renderDashboard() {
-  const profile = getCurrentProfile();
-  if (!profile) {
-    renderAccessDenied();
-    return;
-  }
-
-  const actions = getQuickActions(profile.funcao);
-
-  app.innerHTML = `
-    <section class="section-stack">
-      <div class="status-bar">
-        <div>
-          <strong>${profile.nome}</strong>
-          <div>${formatRole(profile.funcao)}</div>
-        </div>
-        <div>
-          <span class="connection-status" id="connection-status">Online</span>
-          <div id="pending-sync-count">0 pendentes</div>
-        </div>
-      </div>
-
-      <section class="dashboard-grid" aria-label="Resumo do dia">
-        <article class="card metric">
-          <span>Entregas hoje</span>
-          <strong>0</strong>
-        </article>
-        <article class="card metric">
-          <span>Pedidos pendentes</span>
-          <strong>0</strong>
-        </article>
-        <article class="card metric">
-          <span>Recebido hoje</span>
-          <strong>R$ 0</strong>
-        </article>
-        <article class="card metric">
-          <span>Litros entregues</span>
-          <strong>0</strong>
-        </article>
-      </section>
-
-      <section class="panel">
-        <h2 class="panel-title">Acoes rapidas</h2>
-        <div class="quick-actions">
-          ${actions.map((action) => `<a class="${action.className}" href="#${action.route}">${action.label}</a>`).join("")}
-        </div>
-      </section>
-
-      <section class="panel">
-        <h2 class="panel-title">Proximas entregas</h2>
-        <div class="empty-state">Nenhuma entrega cadastrada nesta etapa.</div>
-      </section>
-    </section>
-  `;
-
-  renderConnectionStatus();
-}
-
-function renderPlaceholder(title, description) {
-  app.innerHTML = `
-    <section class="section-stack">
-      <div class="status-bar">
-        <span class="connection-status" id="connection-status">Online</span>
-        <span id="pending-sync-count">0 pendentes</span>
-      </div>
-      <section class="panel">
-        <h2 class="panel-title">${title}</h2>
-        <p class="field-hint">${description}</p>
-      </section>
-    </section>
-  `;
-
-  renderConnectionStatus();
-}
-
 function renderNotFound() {
   app.innerHTML = `
     <section class="panel">
@@ -307,42 +231,4 @@ function renderAccessDenied() {
 
 function canAccessRoute(route, role) {
   return routeAccess[route]?.includes(role) || false;
-}
-
-function getQuickActions(role) {
-  const actions = {
-    administrador: [
-      { route: "/clientes", label: "Novo cliente", className: "button" },
-      { route: "/caminhoes", label: "Gerenciar frota", className: "secondary-button" },
-      { route: "/pedidos", label: "Novo pedido", className: "ghost-button" },
-      { route: "/rota", label: "Ver rota", className: "ghost-button" },
-      { route: "/financeiro", label: "Financeiro", className: "ghost-button" },
-      { route: "/relatorios", label: "Relatorios", className: "ghost-button" }
-    ],
-    atendente: [
-      { route: "/clientes", label: "Novo cliente", className: "button" },
-      { route: "/pedidos", label: "Novo pedido", className: "secondary-button" },
-      { route: "/rota", label: "Ver rota", className: "ghost-button" }
-    ],
-    motorista: [
-      { route: "/rota", label: "Ver entregas de hoje", className: "button" }
-    ],
-    financeiro: [
-      { route: "/financeiro", label: "Ver financeiro", className: "button" },
-      { route: "/relatorios", label: "Ver relatorios", className: "secondary-button" }
-    ]
-  };
-
-  return actions[role] || [];
-}
-
-function formatRole(role) {
-  const labels = {
-    administrador: "Administrador",
-    atendente: "Atendente",
-    motorista: "Motorista",
-    financeiro: "Financeiro"
-  };
-
-  return labels[role] || "Usuario";
 }
