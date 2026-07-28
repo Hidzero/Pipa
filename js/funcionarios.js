@@ -9,11 +9,14 @@ const app = document.querySelector("#app");
 
 const employeeState = {
   funcionarios: [],
+  caminhoes: [],
+  vinculos: [],
   selectedEmployeeId: null,
   currentPage: 1,
   searchTerm: "",
   showInactive: false,
   formMode: null,
+  assignmentFormOpen: false,
   isLoading: false
 };
 
@@ -28,6 +31,12 @@ const operationalRoles = [
   ["motorista", "Motorista"],
   ["financeiro", "Financeiro"],
   ["administrador", "Administrador"]
+];
+
+const assignmentTypes = [
+  ["principal", "Principal"],
+  ["substituto", "Substituto"],
+  ["temporario", "Temporario"]
 ];
 
 export async function renderFuncionariosPage() {
@@ -53,6 +62,7 @@ export async function renderFuncionariosPage() {
 
   renderShell();
   bindShellEvents();
+  await Promise.all([loadCaminhoes(), loadVinculos()]);
   await loadFuncionarios();
 }
 
@@ -160,6 +170,42 @@ async function loadFuncionarios() {
   renderSelectedEmployee();
 }
 
+async function loadCaminhoes() {
+  const profile = getCurrentProfile();
+  const { data, error } = await supabaseClient
+    .from("caminhoes")
+    .select("id, nome, placa, motorista_responsavel_id, status, ativo")
+    .eq("empresa_id", profile.empresa_id)
+    .eq("ativo", true)
+    .order("nome", { ascending: true });
+
+  if (error) {
+    employeeState.caminhoes = [];
+    showToast(error.message || "Nao foi possivel carregar caminhoes.");
+    return;
+  }
+
+  employeeState.caminhoes = data || [];
+}
+
+async function loadVinculos() {
+  const profile = getCurrentProfile();
+  const { data, error } = await supabaseClient
+    .from("caminhao_motoristas")
+    .select("id, caminhao_id, motorista_id, data_inicio, data_fim, tipo, observacoes, ativo, created_at")
+    .eq("empresa_id", profile.empresa_id)
+    .order("data_inicio", { ascending: false })
+    .limit(1000);
+
+  if (error) {
+    employeeState.vinculos = [];
+    showToast("Historico motorista x caminhao indisponivel. Execute o SQL supabase/caminhao-motoristas.sql.");
+    return;
+  }
+
+  employeeState.vinculos = data || [];
+}
+
 function renderFuncionariosList() {
   const list = document.querySelector("#funcionarios-list");
   if (!list) {
@@ -187,7 +233,7 @@ function renderFuncionariosList() {
         <span class="item-main">
           <strong>${escapeHtml(funcionario.nome)}</strong>
           <span>${escapeHtml(funcionario.email || "Sem e-mail")}</span>
-          <span>${escapeHtml(formatAccessLevel(funcionario))} · ${escapeHtml(formatOperationalRole(funcionario))}</span>
+          <span>${escapeHtml(formatEmployeeSummary(funcionario))}</span>
         </span>
         <span class="status-pill ${funcionario.ativo ? "active" : "inactive"}">${funcionario.ativo ? "Ativo" : "Inativo"}</span>
       </button>
@@ -227,6 +273,9 @@ function renderSelectedEmployee() {
     return;
   }
 
+  const isDriver = funcionario.funcao === "motorista";
+  const activeAssignment = getActiveDriverAssignment(funcionario.id);
+
   detail.innerHTML = `
     <section class="panel">
       <div class="panel-heading">
@@ -245,10 +294,13 @@ function renderSelectedEmployee() {
         <div><dt>Telefone</dt><dd>${escapeHtml(funcionario.telefone || "-")}</dd></div>
         <div><dt>Nivel de acesso</dt><dd>${escapeHtml(formatAccessLevel(funcionario))}</dd></div>
         <div><dt>Funcao operacional</dt><dd>${escapeHtml(formatOperationalRole(funcionario))}</dd></div>
+        ${isDriver ? `<div><dt>Caminhao atual</dt><dd>${escapeHtml(activeAssignment ? getTruckLabel(activeAssignment.caminhao_id) : "-")}</dd></div>` : ""}
         <div><dt>Status</dt><dd>${funcionario.ativo ? "Ativo" : "Inativo"}</dd></div>
         <div><dt>ID do usuario</dt><dd>${escapeHtml(funcionario.id)}</dd></div>
       </dl>
     </section>
+
+    ${isDriver ? renderDriverTruckHistory(funcionario) : ""}
   `;
 
   document.querySelector("#edit-employee-button")?.addEventListener("click", () => {
@@ -259,6 +311,89 @@ function renderSelectedEmployee() {
   document.querySelector("#toggle-employee-button")?.addEventListener("click", async () => {
     await toggleEmployee(funcionario);
   });
+
+  document.querySelector("#new-driver-assignment-button")?.addEventListener("click", () => {
+    employeeState.assignmentFormOpen = true;
+    renderSelectedEmployee();
+  });
+
+  document.querySelector("#cancel-driver-assignment-form")?.addEventListener("click", () => {
+    employeeState.assignmentFormOpen = false;
+    renderSelectedEmployee();
+  });
+
+  document.querySelector("#driver-assignment-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await saveDriverAssignment(funcionario, new FormData(event.currentTarget));
+  });
+
+  document.querySelectorAll("[data-end-driver-assignment]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await endDriverAssignment(button.dataset.endDriverAssignment);
+    });
+  });
+}
+
+function renderDriverTruckHistory(funcionario) {
+  const assignments = getAssignmentsForDriver(funcionario.id);
+  const form = employeeState.assignmentFormOpen ? renderDriverAssignmentForm() : "";
+
+  return `
+    <section class="panel">
+      <div class="panel-heading">
+        <div>
+          <h2 class="panel-title">Caminhoes do motorista</h2>
+          <p class="field-hint">Historico completo de qual caminhao ficou com este funcionario.</p>
+        </div>
+        <button class="button compact-button" type="button" id="new-driver-assignment-button">Novo vinculo</button>
+      </div>
+      ${form}
+      ${assignments.length ? `
+        <div class="list">
+          ${assignments.map((assignment) => `
+            <article class="list-item">
+              <div class="panel-heading compact-heading">
+                <div>
+                  <strong>${escapeHtml(getTruckLabel(assignment.caminhao_id))}</strong>
+                  <span>${formatAssignmentType(assignment.tipo)} · ${formatDate(assignment.data_inicio)} ate ${assignment.data_fim ? formatDate(assignment.data_fim) : "atual"}</span>
+                </div>
+                <span class="status-pill ${assignment.ativo ? "active" : "inactive"}">${assignment.ativo ? "Ativo" : "Encerrado"}</span>
+              </div>
+              <dl class="details-list compact-details">
+                <div><dt>Observacoes</dt><dd>${escapeHtml(assignment.observacoes || "-")}</dd></div>
+              </dl>
+              ${assignment.ativo ? `
+                <div class="inline-actions">
+                  <button class="ghost-button compact-button danger-text" type="button" data-end-driver-assignment="${assignment.id}">Encerrar vinculo</button>
+                </div>
+              ` : ""}
+            </article>
+          `).join("")}
+        </div>
+      ` : `<div class="empty-state">Nenhum caminhao vinculado a este motorista.</div>`}
+    </section>
+  `;
+}
+
+function renderDriverAssignmentForm() {
+  return `
+    <section class="nested-panel">
+      <div class="panel-heading">
+        <h3>Novo vinculo</h3>
+        <button class="ghost-button compact-button" type="button" id="cancel-driver-assignment-form">Cancelar</button>
+      </div>
+      <form class="form" id="driver-assignment-form">
+        <div class="form-grid">
+          ${selectField("caminhao_id", "Caminhao", "", getTruckOptions())}
+          ${selectField("tipo", "Tipo", "principal", assignmentTypes)}
+          ${inputField("data_inicio", "Inicio", toInputDate(new Date()), "date", true)}
+          ${inputField("data_fim", "Fim", "", "date")}
+        </div>
+        ${textareaField("observacoes", "Observacoes")}
+        <button class="button" type="submit">Salvar vinculo</button>
+      </form>
+    </section>
+  `;
 }
 
 function renderEmployeeForm() {
@@ -409,6 +544,164 @@ async function toggleEmployee(funcionario) {
   await loadFuncionarios();
 }
 
+async function saveDriverAssignment(funcionario, formData) {
+  if (!navigator.onLine) {
+    showToast("Vinculo motorista x caminhao precisa de internet.");
+    return;
+  }
+
+  const profile = getCurrentProfile();
+  const caminhaoId = requiredText(formData, "caminhao_id", "Selecione o caminhao.");
+  const dataInicio = requiredText(formData, "data_inicio", "Informe a data inicial.");
+  const dataFim = optionalText(formData, "data_fim");
+  const tipo = String(formData.get("tipo") || "principal");
+
+  if (!caminhaoId || !dataInicio) {
+    return;
+  }
+
+  if (dataFim && new Date(`${dataFim}T00:00:00`) < new Date(`${dataInicio}T00:00:00`)) {
+    showToast("A data final nao pode ser anterior ao inicio.");
+    return;
+  }
+
+  if (tipo === "principal") {
+    const closed = await closeActivePrincipalAssignments(funcionario.id, caminhaoId, dataInicio);
+    if (!closed) {
+      return;
+    }
+  }
+
+  const { error } = await supabaseClient
+    .from("caminhao_motoristas")
+    .insert({
+      empresa_id: profile.empresa_id,
+      caminhao_id: caminhaoId,
+      motorista_id: funcionario.id,
+      data_inicio: dataInicio,
+      data_fim: dataFim,
+      tipo,
+      observacoes: optionalText(formData, "observacoes"),
+      ativo: !dataFim,
+      created_by: profile.id,
+      updated_by: profile.id
+    });
+
+  if (error) {
+    showToast(error.message || "Nao foi possivel salvar o vinculo.");
+    return;
+  }
+
+  if (tipo === "principal" && !dataFim) {
+    await updateTruckResponsibleDriver(caminhaoId, funcionario.id);
+  }
+
+  showToast("Vinculo registrado.");
+  employeeState.assignmentFormOpen = false;
+  await Promise.all([loadCaminhoes(), loadVinculos()]);
+  renderFuncionariosList();
+  renderSelectedEmployee();
+}
+
+async function closeActivePrincipalAssignments(motoristaId, caminhaoId, nextStartDate) {
+  const profile = getCurrentProfile();
+  const endDate = previousDate(nextStartDate);
+  const activeAssignments = employeeState.vinculos.filter((assignment) =>
+    assignment.tipo === "principal" &&
+    assignment.ativo &&
+    (assignment.motorista_id === motoristaId || assignment.caminhao_id === caminhaoId)
+  );
+
+  for (const assignment of activeAssignments) {
+    const safeEndDate = new Date(`${endDate}T00:00:00`) < new Date(`${assignment.data_inicio}T00:00:00`)
+      ? assignment.data_inicio
+      : endDate;
+
+    const { error } = await supabaseClient
+      .from("caminhao_motoristas")
+      .update({
+        data_fim: safeEndDate,
+        ativo: false,
+        updated_by: profile.id
+      })
+      .eq("id", assignment.id);
+
+    if (error) {
+      showToast(error.message || "Nao foi possivel encerrar vinculo anterior.");
+      return false;
+    }
+
+    const truck = getTruckById(assignment.caminhao_id);
+    if (truck?.motorista_responsavel_id === assignment.motorista_id) {
+      await updateTruckResponsibleDriver(assignment.caminhao_id, null);
+    }
+  }
+
+  return true;
+}
+
+async function endDriverAssignment(id) {
+  if (!navigator.onLine) {
+    showToast("Encerrar vinculo precisa de internet.");
+    return;
+  }
+
+  const profile = getCurrentProfile();
+  const assignment = employeeState.vinculos.find((item) => item.id === id);
+  if (!assignment) {
+    return;
+  }
+
+  const endDate = window.prompt("Informe a data final do vinculo:", toInputDate(new Date()));
+  if (endDate === null) {
+    return;
+  }
+
+  if (!endDate || new Date(`${endDate}T00:00:00`) < new Date(`${assignment.data_inicio}T00:00:00`)) {
+    showToast("Informe uma data final valida.");
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("caminhao_motoristas")
+    .update({
+      data_fim: endDate,
+      ativo: false,
+      updated_by: profile.id
+    })
+    .eq("id", id);
+
+  if (error) {
+    showToast(error.message || "Nao foi possivel encerrar o vinculo.");
+    return;
+  }
+
+  const truck = getTruckById(assignment.caminhao_id);
+  if (assignment.tipo === "principal" && truck?.motorista_responsavel_id === assignment.motorista_id) {
+    await updateTruckResponsibleDriver(assignment.caminhao_id, null);
+  }
+
+  showToast("Vinculo encerrado.");
+  await Promise.all([loadCaminhoes(), loadVinculos()]);
+  renderFuncionariosList();
+  renderSelectedEmployee();
+}
+
+async function updateTruckResponsibleDriver(truckId, motoristaId) {
+  const profile = getCurrentProfile();
+  const { error } = await supabaseClient
+    .from("caminhoes")
+    .update({
+      motorista_responsavel_id: motoristaId,
+      updated_by: profile.id
+    })
+    .eq("id", truckId);
+
+  if (error) {
+    showToast("Vinculo salvo, mas nao foi possivel atualizar o motorista responsavel do caminhao.");
+  }
+}
+
 function normalizeEmployee(funcionario) {
   return {
     ...funcionario,
@@ -433,6 +726,69 @@ function getSelectedEmployee() {
   return employeeState.funcionarios.find((funcionario) => funcionario.id === employeeState.selectedEmployeeId) || null;
 }
 
+function formatEmployeeSummary(funcionario) {
+  const base = `${formatAccessLevel(funcionario)} · ${formatOperationalRole(funcionario)}`;
+  if (funcionario.funcao !== "motorista") {
+    return base;
+  }
+
+  const activeAssignment = getActiveDriverAssignment(funcionario.id);
+  return activeAssignment ? `${base} · ${getTruckLabel(activeAssignment.caminhao_id)}` : `${base} · Sem caminhao`;
+}
+
+function getAssignmentsForDriver(driverId) {
+  return employeeState.vinculos
+    .filter((assignment) => assignment.motorista_id === driverId)
+    .sort((a, b) => new Date(b.data_inicio) - new Date(a.data_inicio));
+}
+
+function getActiveDriverAssignment(driverId) {
+  return getAssignmentsForDriver(driverId).find((assignment) => assignment.ativo && assignment.tipo === "principal") || null;
+}
+
+function getTruckById(truckId) {
+  return employeeState.caminhoes.find((truck) => truck.id === truckId) || null;
+}
+
+function getTruckLabel(truckId) {
+  const truck = getTruckById(truckId);
+  return truck ? `${truck.nome} · ${truck.placa}` : "Caminhao";
+}
+
+function getTruckOptions() {
+  return [
+    ["", "Selecione um caminhao"],
+    ...employeeState.caminhoes.map((truck) => [truck.id, `${truck.nome} · ${truck.placa}`])
+  ];
+}
+
+function formatAssignmentType(type) {
+  return assignmentTypes.find(([value]) => value === type)?.[1] || "Principal";
+}
+
+function formatDate(value) {
+  if (!value) {
+    return "-";
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  }).format(new Date(`${value}T00:00:00`));
+}
+
+function toInputDate(date) {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 10);
+}
+
+function previousDate(dateValue) {
+  const date = new Date(`${dateValue}T00:00:00`);
+  date.setDate(date.getDate() - 1);
+  return toInputDate(date);
+}
+
 function updateCountLabel(text) {
   const label = document.querySelector("#funcionarios-count");
   if (label) {
@@ -455,6 +811,15 @@ function checkboxField(name, label, checked = false) {
       <input id="${name}" name="${name}" type="checkbox" ${checked ? "checked" : ""}>
       ${label}
     </label>
+  `;
+}
+
+function textareaField(name, label, value = "") {
+  return `
+    <div class="field">
+      <label for="${name}">${label}</label>
+      <textarea id="${name}" name="${name}">${escapeHtml(value || "")}</textarea>
+    </div>
   `;
 }
 
