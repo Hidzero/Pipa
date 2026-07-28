@@ -1,7 +1,7 @@
 import { requestPasswordReset } from "./auth.js";
 import { renderConnectionStatus } from "./offline.js";
 import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
-import { canManageCompany, formatAccessLevel, formatOperationalRole } from "./permissions.js";
+import { canManageEmployees, canManageTruckAssignments, canViewTeam, formatAccessLevel, formatOperationalRole, isSupervisor } from "./permissions.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -12,12 +12,14 @@ const employeeState = {
   funcionarios: [],
   caminhoes: [],
   vinculos: [],
+  supervisorLinks: [],
   selectedEmployeeId: null,
   currentPage: 1,
   searchTerm: "",
   showInactive: false,
   formMode: null,
   assignmentFormOpen: false,
+  supervisorFormOpen: false,
   isLoading: false
 };
 
@@ -56,14 +58,14 @@ export async function renderFuncionariosPage() {
     return;
   }
 
-  if (!canManageCompany(profile)) {
-    renderUnavailable("Apenas administrador da empresa pode gerenciar funcionarios.");
+  if (!canViewTeam(profile)) {
+    renderUnavailable("Seu usuario nao possui permissao para visualizar equipe.");
     return;
   }
 
   renderShell();
   bindShellEvents();
-  await Promise.all([loadCaminhoes(), loadVinculos()]);
+  await Promise.all([loadCaminhoes(), loadVinculos(), loadSupervisorLinks()]);
   await loadFuncionarios();
 }
 
@@ -72,7 +74,7 @@ function renderShell() {
     <section class="section-stack">
       <div class="status-bar">
         <div>
-          <strong>Funcionarios</strong>
+          <strong>${canManageEmployees(getCurrentProfile()) ? "Funcionarios" : "Minha equipe"}</strong>
           <div id="funcionarios-count">Carregando...</div>
         </div>
         <div>
@@ -91,7 +93,7 @@ function renderShell() {
             <input id="funcionarios-show-inactive" type="checkbox" ${employeeState.showInactive ? "checked" : ""}>
             Mostrar inativos
           </label>
-          <button class="button" type="button" id="new-employee-button">Novo funcionario</button>
+          ${canManageEmployees(getCurrentProfile()) ? `<button class="button" type="button" id="new-employee-button">Novo funcionario</button>` : ""}
         </div>
       </section>
 
@@ -99,7 +101,7 @@ function renderShell() {
 
       <section class="resource-layout">
         <div class="panel list-panel">
-          <h2 class="panel-title">Equipe cadastrada</h2>
+          <h2 class="panel-title">${canManageEmployees(getCurrentProfile()) ? "Equipe cadastrada" : "Minha equipe"}</h2>
           <div class="list" id="funcionarios-list">
             <div class="empty-state">Carregando funcionarios...</div>
           </div>
@@ -161,7 +163,7 @@ async function loadFuncionarios() {
     return;
   }
 
-  employeeState.funcionarios = (data || []).map(normalizeEmployee);
+  employeeState.funcionarios = filterEmployeesForProfile((data || []).map(normalizeEmployee));
 
   if (!employeeState.selectedEmployeeId || !employeeState.funcionarios.some((funcionario) => funcionario.id === employeeState.selectedEmployeeId)) {
     employeeState.selectedEmployeeId = employeeState.funcionarios[0]?.id || null;
@@ -207,6 +209,24 @@ async function loadVinculos() {
   employeeState.vinculos = data || [];
 }
 
+async function loadSupervisorLinks() {
+  const profile = getCurrentProfile();
+  const { data, error } = await supabaseClient
+    .from("supervisor_funcionarios")
+    .select("id, supervisor_id, funcionario_id, data_inicio, data_fim, observacoes, ativo, created_at")
+    .eq("empresa_id", profile.empresa_id)
+    .order("data_inicio", { ascending: false })
+    .limit(1000);
+
+  if (error) {
+    employeeState.supervisorLinks = [];
+    showToast("Historico supervisor x funcionario indisponivel. Execute o SQL supabase/supervisor-equipes.sql.");
+    return;
+  }
+
+  employeeState.supervisorLinks = data || [];
+}
+
 function renderFuncionariosList() {
   const list = document.querySelector("#funcionarios-list");
   if (!list) {
@@ -245,6 +265,8 @@ function renderFuncionariosList() {
     button.addEventListener("click", () => {
       employeeState.selectedEmployeeId = button.dataset.employeeId;
       employeeState.formMode = null;
+      employeeState.assignmentFormOpen = false;
+      employeeState.supervisorFormOpen = false;
       document.querySelector("#employee-form-container").innerHTML = "";
       renderFuncionariosList();
       renderSelectedEmployee();
@@ -276,6 +298,8 @@ function renderSelectedEmployee() {
 
   const isDriver = funcionario.funcao === "motorista";
   const activeAssignment = getActiveDriverAssignment(funcionario.id);
+  const currentSupervisor = getActiveSupervisorLink(funcionario.id);
+  const canManagePeople = canManageEmployees(getCurrentProfile());
 
   detail.innerHTML = `
     <section class="panel">
@@ -284,11 +308,11 @@ function renderSelectedEmployee() {
           <h2 class="panel-title">${escapeHtml(funcionario.nome)}</h2>
           <p class="field-hint">${escapeHtml(formatAccessLevel(funcionario))} · ${escapeHtml(formatOperationalRole(funcionario))}</p>
         </div>
-        <div class="inline-actions">
+        ${canManagePeople ? `<div class="inline-actions">
           <button class="ghost-button compact-button" type="button" id="resend-access-button">Reenviar acesso</button>
           <button class="ghost-button compact-button" type="button" id="edit-employee-button">Editar</button>
           <button class="ghost-button compact-button danger-text" type="button" id="toggle-employee-button">${funcionario.ativo ? "Inativar" : "Reativar"}</button>
-        </div>
+        </div>` : ""}
       </div>
 
       <dl class="details-list">
@@ -296,6 +320,7 @@ function renderSelectedEmployee() {
         <div><dt>Telefone</dt><dd>${escapeHtml(funcionario.telefone || "-")}</dd></div>
         <div><dt>Nivel de acesso</dt><dd>${escapeHtml(formatAccessLevel(funcionario))}</dd></div>
         <div><dt>Funcao operacional</dt><dd>${escapeHtml(formatOperationalRole(funcionario))}</dd></div>
+        ${funcionario.nivel_acesso === "funcionario" ? `<div><dt>Supervisor atual</dt><dd>${escapeHtml(currentSupervisor ? getEmployeeName(currentSupervisor.supervisor_id) : "-")}</dd></div>` : ""}
         ${isDriver ? `<div><dt>Caminhao atual</dt><dd>${escapeHtml(activeAssignment ? getTruckLabel(activeAssignment.caminhao_id) : "-")}</dd></div>` : ""}
         <div><dt>Status</dt><dd>${funcionario.ativo ? "Ativo" : "Inativo"}</dd></div>
         <div><dt>ID do usuario</dt><dd>${escapeHtml(funcionario.id)}</dd></div>
@@ -303,6 +328,7 @@ function renderSelectedEmployee() {
     </section>
 
     ${isDriver ? renderDriverTruckHistory(funcionario) : ""}
+    ${renderSupervisorSection(funcionario)}
   `;
 
   document.querySelector("#edit-employee-button")?.addEventListener("click", () => {
@@ -338,11 +364,33 @@ function renderSelectedEmployee() {
       await endDriverAssignment(button.dataset.endDriverAssignment);
     });
   });
+
+  document.querySelector("#new-supervisor-link-button")?.addEventListener("click", () => {
+    employeeState.supervisorFormOpen = true;
+    renderSelectedEmployee();
+  });
+
+  document.querySelector("#cancel-supervisor-link-form")?.addEventListener("click", () => {
+    employeeState.supervisorFormOpen = false;
+    renderSelectedEmployee();
+  });
+
+  document.querySelector("#supervisor-link-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await saveSupervisorLink(funcionario, new FormData(event.currentTarget));
+  });
+
+  document.querySelectorAll("[data-end-supervisor-link]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await endSupervisorLink(button.dataset.endSupervisorLink);
+    });
+  });
 }
 
 function renderDriverTruckHistory(funcionario) {
   const assignments = getAssignmentsForDriver(funcionario.id);
   const form = employeeState.assignmentFormOpen ? renderDriverAssignmentForm() : "";
+  const canWriteAssignments = canManageTruckAssignments(getCurrentProfile());
 
   return `
     <section class="panel">
@@ -351,7 +399,7 @@ function renderDriverTruckHistory(funcionario) {
           <h2 class="panel-title">Caminhoes do motorista</h2>
           <p class="field-hint">Historico completo de qual caminhao ficou com este funcionario.</p>
         </div>
-        <button class="button compact-button" type="button" id="new-driver-assignment-button">Novo vinculo</button>
+        ${canWriteAssignments ? `<button class="button compact-button" type="button" id="new-driver-assignment-button">Novo vinculo</button>` : ""}
       </div>
       ${form}
       ${assignments.length ? `
@@ -368,7 +416,7 @@ function renderDriverTruckHistory(funcionario) {
               <dl class="details-list compact-details">
                 <div><dt>Observacoes</dt><dd>${escapeHtml(assignment.observacoes || "-")}</dd></div>
               </dl>
-              ${assignment.ativo ? `
+              ${assignment.ativo && canWriteAssignments ? `
                 <div class="inline-actions">
                   <button class="ghost-button compact-button danger-text" type="button" data-end-driver-assignment="${assignment.id}">Encerrar vinculo</button>
                 </div>
@@ -378,6 +426,102 @@ function renderDriverTruckHistory(funcionario) {
         </div>
       ` : `<div class="empty-state">Nenhum caminhao vinculado a este motorista.</div>`}
     </section>
+  `;
+}
+
+function renderSupervisorSection(funcionario) {
+  const profile = getCurrentProfile();
+  const canManagePeople = canManageEmployees(profile);
+
+  if (funcionario.nivel_acesso === "administrador") {
+    return "";
+  }
+
+  if (funcionario.nivel_acesso === "supervisor") {
+    const supervisedTeam = getTeamForSupervisor(funcionario.id);
+    return `
+      <section class="panel">
+        <h2 class="panel-title">Equipe supervisionada</h2>
+        ${supervisedTeam.length ? renderSupervisedTeam(supervisedTeam) : `<div class="empty-state">Nenhum funcionario vinculado a este supervisor.</div>`}
+      </section>
+    `;
+  }
+
+  const links = getSupervisorLinksForEmployee(funcionario.id);
+  const form = employeeState.supervisorFormOpen ? renderSupervisorLinkForm(funcionario) : "";
+
+  return `
+    <section class="panel">
+      <div class="panel-heading">
+        <div>
+          <h2 class="panel-title">Supervisor responsavel</h2>
+          <p class="field-hint">Historico de acompanhamento deste funcionario.</p>
+        </div>
+        ${canManagePeople ? `<button class="button compact-button" type="button" id="new-supervisor-link-button">Novo supervisor</button>` : ""}
+      </div>
+      ${form}
+      ${links.length ? `
+        <div class="list">
+          ${links.map((link) => `
+            <article class="list-item">
+              <div class="panel-heading compact-heading">
+                <div>
+                  <strong>${escapeHtml(getEmployeeName(link.supervisor_id))}</strong>
+                  <span>${formatDate(link.data_inicio)} ate ${link.data_fim ? formatDate(link.data_fim) : "atual"}</span>
+                </div>
+                <span class="status-pill ${link.ativo ? "active" : "inactive"}">${link.ativo ? "Ativo" : "Encerrado"}</span>
+              </div>
+              <dl class="details-list compact-details">
+                <div><dt>Observacoes</dt><dd>${escapeHtml(link.observacoes || "-")}</dd></div>
+              </dl>
+              ${link.ativo && canManagePeople ? `
+                <div class="inline-actions">
+                  <button class="ghost-button compact-button danger-text" type="button" data-end-supervisor-link="${link.id}">Encerrar supervisor</button>
+                </div>
+              ` : ""}
+            </article>
+          `).join("")}
+        </div>
+      ` : `<div class="empty-state">Nenhum supervisor vinculado a este funcionario.</div>`}
+    </section>
+  `;
+}
+
+function renderSupervisorLinkForm(funcionario) {
+  return `
+    <section class="nested-panel">
+      <div class="panel-heading">
+        <h3>Novo supervisor</h3>
+        <button class="ghost-button compact-button" type="button" id="cancel-supervisor-link-form">Cancelar</button>
+      </div>
+      <form class="form" id="supervisor-link-form">
+        <div class="form-grid">
+          ${selectField("supervisor_id", "Supervisor", "", getSupervisorOptions(funcionario.id))}
+          ${inputField("data_inicio", "Inicio", toInputDate(new Date()), "date", true)}
+        </div>
+        ${textareaField("observacoes", "Observacoes")}
+        <button class="button" type="submit">Salvar supervisor</button>
+      </form>
+    </section>
+  `;
+}
+
+function renderSupervisedTeam(team) {
+  if (!team.length) {
+    return "";
+  }
+
+  return `
+    <div class="nested-panel">
+      <div class="list">
+        ${team.map((employee) => `
+          <article class="list-item">
+            <strong>${escapeHtml(employee.nome)}</strong>
+            <span>${escapeHtml(formatOperationalRole(employee))}</span>
+          </article>
+        `).join("")}
+      </div>
+    </div>
   `;
 }
 
@@ -575,6 +719,11 @@ async function toggleEmployee(funcionario) {
 }
 
 async function saveDriverAssignment(funcionario, formData) {
+  if (!canManageTruckAssignments(getCurrentProfile())) {
+    showToast("Seu usuario nao possui permissao para vincular caminhoes.");
+    return;
+  }
+
   if (!navigator.onLine) {
     showToast("Vinculo motorista x caminhao precisa de internet.");
     return;
@@ -671,6 +820,11 @@ async function closeActivePrincipalAssignments(motoristaId, caminhaoId, nextStar
 }
 
 async function endDriverAssignment(id) {
+  if (!canManageTruckAssignments(getCurrentProfile())) {
+    showToast("Seu usuario nao possui permissao para encerrar vinculos.");
+    return;
+  }
+
   if (!navigator.onLine) {
     showToast("Encerrar vinculo precisa de internet.");
     return;
@@ -732,12 +886,155 @@ async function updateTruckResponsibleDriver(truckId, motoristaId) {
   }
 }
 
+async function saveSupervisorLink(funcionario, formData) {
+  if (!canManageEmployees(getCurrentProfile())) {
+    showToast("Apenas administrador pode vincular supervisores.");
+    return;
+  }
+
+  if (!navigator.onLine) {
+    showToast("Vinculo supervisor x funcionario precisa de internet.");
+    return;
+  }
+
+  const profile = getCurrentProfile();
+  const supervisorId = requiredText(formData, "supervisor_id", "Selecione o supervisor.");
+  const dataInicio = requiredText(formData, "data_inicio", "Informe a data inicial.");
+
+  if (!supervisorId || !dataInicio) {
+    return;
+  }
+
+  const closed = await closeActiveSupervisorLinks(funcionario.id, dataInicio);
+  if (!closed) {
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("supervisor_funcionarios")
+    .insert({
+      empresa_id: profile.empresa_id,
+      supervisor_id: supervisorId,
+      funcionario_id: funcionario.id,
+      data_inicio: dataInicio,
+      observacoes: optionalText(formData, "observacoes"),
+      ativo: true,
+      created_by: profile.id,
+      updated_by: profile.id
+    });
+
+  if (error) {
+    showToast(error.message || "Nao foi possivel salvar o supervisor.");
+    return;
+  }
+
+  showToast("Supervisor vinculado.");
+  employeeState.supervisorFormOpen = false;
+  await loadSupervisorLinks();
+  renderFuncionariosList();
+  renderSelectedEmployee();
+}
+
+async function closeActiveSupervisorLinks(funcionarioId, nextStartDate) {
+  const profile = getCurrentProfile();
+  const endDate = previousDate(nextStartDate);
+  const activeLinks = employeeState.supervisorLinks.filter((link) =>
+    link.funcionario_id === funcionarioId &&
+    link.ativo
+  );
+
+  for (const link of activeLinks) {
+    const safeEndDate = new Date(`${endDate}T00:00:00`) < new Date(`${link.data_inicio}T00:00:00`)
+      ? link.data_inicio
+      : endDate;
+
+    const { error } = await supabaseClient
+      .from("supervisor_funcionarios")
+      .update({
+        data_fim: safeEndDate,
+        ativo: false,
+        updated_by: profile.id
+      })
+      .eq("id", link.id);
+
+    if (error) {
+      showToast(error.message || "Nao foi possivel encerrar supervisor anterior.");
+      return false;
+    }
+  }
+
+  return true;
+}
+
+async function endSupervisorLink(id) {
+  if (!canManageEmployees(getCurrentProfile())) {
+    showToast("Apenas administrador pode encerrar supervisor.");
+    return;
+  }
+
+  if (!navigator.onLine) {
+    showToast("Encerrar supervisor precisa de internet.");
+    return;
+  }
+
+  const profile = getCurrentProfile();
+  const link = employeeState.supervisorLinks.find((item) => item.id === id);
+  if (!link) {
+    return;
+  }
+
+  const endDate = window.prompt("Informe a data final do supervisor:", toInputDate(new Date()));
+  if (endDate === null) {
+    return;
+  }
+
+  if (!endDate || new Date(`${endDate}T00:00:00`) < new Date(`${link.data_inicio}T00:00:00`)) {
+    showToast("Informe uma data final valida.");
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("supervisor_funcionarios")
+    .update({
+      data_fim: endDate,
+      ativo: false,
+      updated_by: profile.id
+    })
+    .eq("id", id);
+
+  if (error) {
+    showToast(error.message || "Nao foi possivel encerrar o supervisor.");
+    return;
+  }
+
+  showToast("Supervisor encerrado.");
+  await loadSupervisorLinks();
+  renderFuncionariosList();
+  renderSelectedEmployee();
+}
+
 function normalizeEmployee(funcionario) {
   return {
     ...funcionario,
     nivel_acesso: funcionario.nivel_acesso || (funcionario.funcao === "administrador" ? "administrador" : "funcionario"),
     cargo: funcionario.cargo || funcionario.funcao
   };
+}
+
+function filterEmployeesForProfile(funcionarios) {
+  const profile = getCurrentProfile();
+  if (!isSupervisor(profile)) {
+    return funcionarios;
+  }
+
+  const allowedIds = new Set([
+    profile.id,
+    ...employeeState.supervisorLinks
+      .filter((link) => link.supervisor_id === profile.id && link.ativo)
+      .map((link) => link.funcionario_id)
+  ]);
+
+  return funcionarios.filter((funcionario) => allowedIds.has(funcionario.id));
 }
 
 function getFilteredFuncionarios() {
@@ -754,6 +1051,14 @@ function getFilteredFuncionarios() {
 
 function getSelectedEmployee() {
   return employeeState.funcionarios.find((funcionario) => funcionario.id === employeeState.selectedEmployeeId) || null;
+}
+
+function getEmployeeById(employeeId) {
+  return employeeState.funcionarios.find((funcionario) => funcionario.id === employeeId) || null;
+}
+
+function getEmployeeName(employeeId) {
+  return getEmployeeById(employeeId)?.nome || "Funcionario";
 }
 
 function formatEmployeeSummary(funcionario) {
@@ -776,6 +1081,28 @@ function getActiveDriverAssignment(driverId) {
   return getAssignmentsForDriver(driverId).find((assignment) => assignment.ativo && assignment.tipo === "principal") || null;
 }
 
+function getSupervisorLinksForEmployee(employeeId) {
+  return employeeState.supervisorLinks
+    .filter((link) => link.funcionario_id === employeeId)
+    .sort((a, b) => new Date(b.data_inicio) - new Date(a.data_inicio));
+}
+
+function getActiveSupervisorLink(employeeId) {
+  return getSupervisorLinksForEmployee(employeeId).find((link) => link.ativo) || null;
+}
+
+function getTeamForSupervisor(supervisorId) {
+  const employeeIds = new Set(
+    employeeState.supervisorLinks
+      .filter((link) => link.supervisor_id === supervisorId && link.ativo)
+      .map((link) => link.funcionario_id)
+  );
+
+  return employeeState.funcionarios
+    .filter((funcionario) => employeeIds.has(funcionario.id))
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
 function getTruckById(truckId) {
   return employeeState.caminhoes.find((truck) => truck.id === truckId) || null;
 }
@@ -789,6 +1116,21 @@ function getTruckOptions() {
   return [
     ["", "Selecione um caminhao"],
     ...employeeState.caminhoes.map((truck) => [truck.id, `${truck.nome} · ${truck.placa}`])
+  ];
+}
+
+function getSupervisorOptions(currentEmployeeId) {
+  const supervisors = employeeState.funcionarios
+    .filter((funcionario) =>
+      funcionario.id !== currentEmployeeId &&
+      funcionario.nivel_acesso === "supervisor" &&
+      funcionario.ativo
+    )
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+
+  return [
+    ["", "Selecione um supervisor"],
+    ...supervisors.map((supervisor) => [supervisor.id, supervisor.nome])
   ];
 }
 

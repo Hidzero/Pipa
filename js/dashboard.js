@@ -398,6 +398,7 @@ function getQuickActions(profile) {
       { route: "/clientes", label: "Novo cliente", className: "button" },
       { route: "/pedidos", label: "Novo pedido", className: "secondary-button" },
       { route: "/agenda", label: "Organizar agenda", className: "ghost-button" },
+      { route: "/funcionarios", label: "Minha equipe", className: "ghost-button" },
       { route: "/caminhoes", label: "Ver frota", className: "ghost-button" }
     ];
   }

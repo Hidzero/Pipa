@@ -42,6 +42,14 @@ export function canManageCompany(profile) {
   return isAdmin(profile);
 }
 
+export function canViewTeam(profile) {
+  return isAdmin(profile) || isSupervisor(profile);
+}
+
+export function canManageEmployees(profile) {
+  return isAdmin(profile);
+}
+
 export function canManageTruckAssignments(profile) {
   return isAdmin(profile) || isSupervisor(profile);
 }
@@ -60,7 +68,7 @@ export function canAccessRouteByProfile(route, profile) {
   }
 
   if (isSupervisor(profile)) {
-    return ["/dashboard", "/clientes", "/caminhoes", "/pedidos", "/agenda", "/rota"].includes(route);
+    return ["/dashboard", "/clientes", "/funcionarios", "/caminhoes", "/pedidos", "/agenda", "/rota"].includes(route);
   }
 
   if (isFinance(profile)) {
