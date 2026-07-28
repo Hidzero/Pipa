@@ -2,6 +2,8 @@ import { signIn, requestPasswordReset, updatePassword } from "./auth.js";
 import { renderAgendaPage } from "./agenda.js";
 import { renderCaminhoesPage } from "./caminhoes.js";
 import { renderClientesPage } from "./clientes.js";
+import { renderDashboardPage } from "./dashboard.js";
+import { renderFinanceiroPage } from "./financeiro.js";
 import { renderPedidosPage } from "./pedidos.js";
 import { renderRotaPage } from "./rota.js";
 import { getCurrentProfile, getState } from "./state.js";
@@ -67,7 +69,7 @@ export function renderRoute() {
   } else if (route === "/nova-senha") {
     renderNewPassword();
   } else if (route === "/dashboard") {
-    renderDashboard();
+    renderDashboardPage();
   } else if (route === "/clientes") {
     renderClientesPage();
   } else if (route === "/caminhoes") {
@@ -79,7 +81,7 @@ export function renderRoute() {
   } else if (route === "/rota") {
     renderRotaPage();
   } else if (route === "/financeiro") {
-    renderPlaceholder("Financeiro", "Pagamentos, recibos, combustivel e despesas entram nas etapas 9 e 10.");
+    renderFinanceiroPage();
   } else if (route === "/sem-acesso") {
     renderAccessDenied();
   } else {
