@@ -1,4 +1,4 @@
-import { renderConnectionStatus } from "./offline.js";
+import { enqueueSupabaseMutation, renderConnectionStatus } from "./offline.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -396,6 +396,23 @@ async function saveOrder(formData, existingOrder = {}) {
   }
 
   const isEdit = Boolean(existingOrder?.id);
+  if (!navigator.onLine) {
+    enqueueSupabaseMutation({
+      table: "pedidos",
+      operation: isEdit ? "update" : "insert",
+      payload: isEdit ? payload : {
+        ...payload,
+        empresa_id: profile.empresa_id,
+        criado_por: profile.id
+      },
+      match: isEdit ? { id: existingOrder.id } : null,
+      label: isEdit ? "Pedido atualizado" : "Pedido cadastrado"
+    });
+    orderState.formMode = null;
+    document.querySelector("#order-form-container").innerHTML = "";
+    return;
+  }
+
   const query = isEdit
     ? supabaseClient.from("pedidos").update(payload).eq("id", existingOrder.id)
     : supabaseClient.from("pedidos").insert({

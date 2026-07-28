@@ -1,4 +1,4 @@
-const CACHE_NAME = "pipa-entregas-v12";
+const CACHE_NAME = "pipa-entregas-v13";
 
 const APP_SHELL = [
   "./",

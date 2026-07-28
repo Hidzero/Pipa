@@ -1,4 +1,4 @@
-import { renderConnectionStatus } from "./offline.js";
+import { enqueueSupabaseMutation, renderConnectionStatus } from "./offline.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -626,6 +626,24 @@ async function savePayment(formData, existingPayment = {}) {
   };
 
   const isEdit = Boolean(existingPayment?.id);
+  if (!navigator.onLine) {
+    enqueueSupabaseMutation({
+      table: "pagamentos",
+      operation: isEdit ? "update" : "insert",
+      payload: isEdit ? basePayload : {
+        ...basePayload,
+        empresa_id: profile.empresa_id,
+        created_by: profile.id
+      },
+      match: isEdit ? { id: existingPayment.id } : null,
+      label: isEdit ? "Pagamento atualizado" : "Pagamento cadastrado"
+    });
+    warnOfflineFile(formData, "O comprovante nao foi anexado offline. Envie o arquivo depois que sincronizar.");
+    financeState.formMode = null;
+    document.querySelector("#payment-form-container").innerHTML = "";
+    return;
+  }
+
   const query = isEdit
     ? supabaseClient.from("pagamentos").update(basePayload).eq("id", existingPayment.id).select("id").single()
     : supabaseClient.from("pagamentos").insert({
@@ -677,6 +695,13 @@ async function uploadProof(entity, recordId, formData) {
   }
 
   return path;
+}
+
+function warnOfflineFile(formData, message) {
+  const file = formData.get("comprovante");
+  if (file instanceof File && file.size > 0) {
+    showToast(message);
+  }
 }
 
 async function cancelPayment(payment) {
@@ -932,6 +957,24 @@ async function saveFuel(formData, existingFuel = {}) {
   }
 
   const isEdit = Boolean(existingFuel?.id);
+  if (!navigator.onLine) {
+    enqueueSupabaseMutation({
+      table: "combustiveis",
+      operation: isEdit ? "update" : "insert",
+      payload: isEdit ? payload : {
+        ...payload,
+        empresa_id: profile.empresa_id,
+        created_by: profile.id
+      },
+      match: isEdit ? { id: existingFuel.id } : null,
+      label: isEdit ? "Abastecimento atualizado" : "Abastecimento cadastrado"
+    });
+    warnOfflineFile(formData, "O comprovante nao foi anexado offline. Envie o arquivo depois que sincronizar.");
+    financeState.fuelFormMode = null;
+    document.querySelector("#fuel-form-container").innerHTML = "";
+    return;
+  }
+
   const query = isEdit
     ? supabaseClient.from("combustiveis").update(payload).eq("id", existingFuel.id).select("id").single()
     : supabaseClient.from("combustiveis").insert({
@@ -986,6 +1029,24 @@ async function saveExpense(formData, existingExpense = {}) {
   }
 
   const isEdit = Boolean(existingExpense?.id);
+  if (!navigator.onLine) {
+    enqueueSupabaseMutation({
+      table: "despesas",
+      operation: isEdit ? "update" : "insert",
+      payload: isEdit ? payload : {
+        ...payload,
+        empresa_id: profile.empresa_id,
+        created_by: profile.id
+      },
+      match: isEdit ? { id: existingExpense.id } : null,
+      label: isEdit ? "Despesa atualizada" : "Despesa cadastrada"
+    });
+    warnOfflineFile(formData, "O comprovante nao foi anexado offline. Envie o arquivo depois que sincronizar.");
+    financeState.expenseFormMode = null;
+    document.querySelector("#expense-form-container").innerHTML = "";
+    return;
+  }
+
   const query = isEdit
     ? supabaseClient.from("despesas").update(payload).eq("id", existingExpense.id).select("id").single()
     : supabaseClient.from("despesas").insert({

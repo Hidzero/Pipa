@@ -1,4 +1,4 @@
-import { renderConnectionStatus } from "./offline.js";
+import { enqueueSupabaseMutation, renderConnectionStatus } from "./offline.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -451,6 +451,23 @@ async function saveCliente(formData, existingCliente = {}) {
   }
 
   const isEdit = Boolean(existingCliente?.id);
+  if (!navigator.onLine) {
+    enqueueSupabaseMutation({
+      table: "clientes",
+      operation: isEdit ? "update" : "insert",
+      payload: isEdit ? payload : {
+        ...payload,
+        empresa_id: profile.empresa_id,
+        created_by: profile.id
+      },
+      match: isEdit ? { id: existingCliente.id } : null,
+      label: isEdit ? "Cliente atualizado" : "Cliente cadastrado"
+    });
+    customerState.clientFormMode = null;
+    document.querySelector("#client-form-container").innerHTML = "";
+    return;
+  }
+
   const query = isEdit
     ? supabaseClient.from("clientes").update(payload).eq("id", existingCliente.id)
     : supabaseClient.from("clientes").insert({
@@ -498,6 +515,24 @@ async function saveLocal(formData, existingLocal = {}) {
   }
 
   const isEdit = Boolean(existingLocal?.id);
+  if (!navigator.onLine) {
+    enqueueSupabaseMutation({
+      table: "locais_entrega",
+      operation: isEdit ? "update" : "insert",
+      payload: isEdit ? payload : {
+        ...payload,
+        empresa_id: profile.empresa_id,
+        cliente_id: cliente.id,
+        created_by: profile.id
+      },
+      match: isEdit ? { id: existingLocal.id } : null,
+      label: isEdit ? "Local atualizado" : "Local cadastrado"
+    });
+    customerState.locationFormMode = null;
+    document.querySelector("#location-form-container").innerHTML = "";
+    return;
+  }
+
   const query = isEdit
     ? supabaseClient.from("locais_entrega").update(payload).eq("id", existingLocal.id)
     : supabaseClient.from("locais_entrega").insert({

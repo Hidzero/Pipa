@@ -1,4 +1,4 @@
-import { renderConnectionStatus } from "./offline.js";
+import { enqueueSupabaseMutation, renderConnectionStatus } from "./offline.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -593,6 +593,44 @@ async function saveDelivery(item, formData, existingDelivery, existingReservoirs
     return;
   }
 
+  if (!navigator.onLine) {
+    const deliveryId = existingDelivery?.id || crypto.randomUUID();
+    enqueueSupabaseMutation({
+      table: "entregas",
+      operation: "upsert",
+      payload: existingDelivery?.id ? payload : { ...payload, id: deliveryId },
+      options: { onConflict: "pedido_id" },
+      label: "Entrega registrada"
+    });
+
+    buildReservoirRows(deliveryId, formData, existingReservoirs).forEach((row) => {
+      const { id, ...reservoirPayload } = row;
+      enqueueSupabaseMutation({
+        table: "reservatorios_entrega",
+        operation: id ? "update" : "insert",
+        payload: reservoirPayload,
+        match: id ? { id } : null,
+        label: "Reservatorio registrado"
+      });
+    });
+
+    enqueueSupabaseMutation({
+      table: "pedidos",
+      operation: "update",
+      payload: { status: "concluido" },
+      match: { id: item.pedido_id },
+      label: "Pedido concluido"
+    });
+
+    warnOfflineDeliveryFiles(formData);
+    pedido.status = "concluido";
+    routeState.activeDeliveryFormId = null;
+    document.querySelector("#delivery-form-container").innerHTML = "";
+    renderRouteList();
+    renderSelectedRouteItem();
+    return;
+  }
+
   const { data: delivery, error } = await supabaseClient
     .from("entregas")
     .upsert(payload, { onConflict: "pedido_id" })
@@ -663,15 +701,7 @@ async function uploadDeliveryFiles(deliveryId, formData) {
 }
 
 async function saveReservoirs(deliveryId, formData, existingReservoirs) {
-  const rows = [0, 1, 2, 3].map((index) => ({
-    id: existingReservoirs[index]?.id,
-    empresa_id: getCurrentProfile().empresa_id,
-    entrega_id: deliveryId,
-    descricao: optionalText(formData, `reservatorio_descricao_${index}`),
-    capacidade_litros: optionalInteger(formData, `reservatorio_capacidade_${index}`),
-    quantidade_entregue_litros: optionalInteger(formData, `reservatorio_quantidade_${index}`) || 0,
-    observacoes: optionalText(formData, `reservatorio_observacoes_${index}`)
-  })).filter((row) => row.descricao || row.capacidade_litros !== null || row.quantidade_entregue_litros > 0 || row.observacoes);
+  const rows = buildReservoirRows(deliveryId, formData, existingReservoirs);
 
   for (const row of rows) {
     const { id, ...payload } = row;
@@ -684,6 +714,29 @@ async function saveReservoirs(deliveryId, formData, existingReservoirs) {
       showToast(error.message || "Nao foi possivel salvar um reservatorio.");
       return;
     }
+  }
+}
+
+function buildReservoirRows(deliveryId, formData, existingReservoirs) {
+  return [0, 1, 2, 3].map((index) => ({
+    id: existingReservoirs[index]?.id,
+    empresa_id: getCurrentProfile().empresa_id,
+    entrega_id: deliveryId,
+    descricao: optionalText(formData, `reservatorio_descricao_${index}`),
+    capacidade_litros: optionalInteger(formData, `reservatorio_capacidade_${index}`),
+    quantidade_entregue_litros: optionalInteger(formData, `reservatorio_quantidade_${index}`) || 0,
+    observacoes: optionalText(formData, `reservatorio_observacoes_${index}`)
+  })).filter((row) => row.descricao || row.capacidade_litros !== null || row.quantidade_entregue_litros > 0 || row.observacoes);
+}
+
+function warnOfflineDeliveryFiles(formData) {
+  const photo = formData.get("foto_entrega");
+  if (photo instanceof File && photo.size > 0) {
+    showToast("A foto nao foi anexada offline. Envie a imagem depois que sincronizar.");
+  }
+
+  if (routeState.signatureHasDrawing) {
+    showToast("A assinatura nao foi anexada offline. Reenvie quando estiver online.");
   }
 }
 
