@@ -42,6 +42,14 @@ export function canManageCompany(profile) {
   return isAdmin(profile);
 }
 
+export function canManageCustomers(profile) {
+  return isAdmin(profile) || isSupervisor(profile);
+}
+
+export function canDeactivateCustomers(profile) {
+  return isAdmin(profile);
+}
+
 export function canViewTeam(profile) {
   return isAdmin(profile) || isSupervisor(profile);
 }
@@ -54,7 +62,31 @@ export function canManageTruckAssignments(profile) {
   return isAdmin(profile) || isSupervisor(profile);
 }
 
+export function canCreateOrders(profile) {
+  return isAdmin(profile) || isSupervisor(profile);
+}
+
+export function canEditOrderOperations(profile) {
+  return isAdmin(profile) || isSupervisor(profile);
+}
+
+export function canEditOrderFinancials(profile) {
+  return isAdmin(profile);
+}
+
+export function canCancelOrders(profile) {
+  return isAdmin(profile);
+}
+
+export function canManageSchedule(profile) {
+  return isAdmin(profile) || isSupervisor(profile);
+}
+
 export function canViewFinance(profile) {
+  return isAdmin(profile) || isFinance(profile);
+}
+
+export function canManageFinance(profile) {
   return isAdmin(profile) || isFinance(profile);
 }
 

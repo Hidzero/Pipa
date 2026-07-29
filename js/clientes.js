@@ -1,5 +1,6 @@
 import { enqueueSupabaseMutation, renderConnectionStatus } from "./offline.js";
 import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
+import { canDeactivateCustomers, canManageCustomers } from "./permissions.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -72,7 +73,7 @@ function renderShell() {
             <input id="clientes-show-inactive" type="checkbox" ${customerState.showInactive ? "checked" : ""}>
             Mostrar inativos
           </label>
-          <button class="button" type="button" id="new-client-button">Novo cliente</button>
+          ${canManageCustomers(getCurrentProfile()) ? `<button class="button" type="button" id="new-client-button">Novo cliente</button>` : ""}
         </div>
       </section>
 
@@ -219,6 +220,9 @@ async function renderSelectedClient() {
     return;
   }
 
+  const canWrite = canManageCustomers(getCurrentProfile());
+  const canDeactivate = canDeactivateCustomers(getCurrentProfile());
+
   detail.innerHTML = `
     <section class="panel">
       <div class="panel-heading">
@@ -226,10 +230,10 @@ async function renderSelectedClient() {
           <h2 class="panel-title">${escapeHtml(cliente.nome)}</h2>
           <p class="field-hint">${formatCustomerType(cliente.tipo)} · ${cliente.ativo ? "Ativo" : "Inativo"}</p>
         </div>
-        <div class="inline-actions">
-          <button class="ghost-button compact-button" type="button" id="edit-client-button">Editar</button>
-          <button class="ghost-button compact-button danger-text" type="button" id="toggle-client-button">${cliente.ativo ? "Inativar" : "Reativar"}</button>
-        </div>
+        ${canWrite || canDeactivate ? `<div class="inline-actions">
+          ${canWrite ? `<button class="ghost-button compact-button" type="button" id="edit-client-button">Editar</button>` : ""}
+          ${canDeactivate ? `<button class="ghost-button compact-button danger-text" type="button" id="toggle-client-button">${cliente.ativo ? "Inativar" : "Reativar"}</button>` : ""}
+        </div>` : ""}
       </div>
 
       <dl class="details-list">
@@ -250,7 +254,7 @@ async function renderSelectedClient() {
     <section class="panel">
       <div class="panel-heading">
         <h2 class="panel-title">Locais de entrega</h2>
-        <button class="button compact-button" type="button" id="new-location-button">Novo local</button>
+        ${canWrite ? `<button class="button compact-button" type="button" id="new-location-button">Novo local</button>` : ""}
       </div>
       <div id="location-form-container"></div>
       <div class="list" id="locais-list">
@@ -328,8 +332,8 @@ function renderLocaisList() {
         </dl>
         <div class="button-row">
           ${buildMapLink(local.latitude, local.longitude, local.endereco)}
-          <button class="ghost-button compact-button" type="button" data-edit-location="${local.id}">Editar</button>
-          <button class="ghost-button compact-button danger-text" type="button" data-toggle-location="${local.id}">${local.ativo ? "Inativar" : "Reativar"}</button>
+          ${canManageCustomers(getCurrentProfile()) ? `<button class="ghost-button compact-button" type="button" data-edit-location="${local.id}">Editar</button>` : ""}
+          ${canDeactivateCustomers(getCurrentProfile()) ? `<button class="ghost-button compact-button danger-text" type="button" data-toggle-location="${local.id}">${local.ativo ? "Inativar" : "Reativar"}</button>` : ""}
         </div>
       </article>
     `)
@@ -353,6 +357,11 @@ function renderLocaisList() {
 }
 
 function renderClientForm() {
+  if (!canManageCustomers(getCurrentProfile())) {
+    showToast("Seu usuario nao possui permissao para salvar clientes.");
+    return;
+  }
+
   const container = document.querySelector("#client-form-container");
   if (!container) {
     return;
@@ -397,6 +406,11 @@ function renderClientForm() {
 }
 
 function renderLocationForm() {
+  if (!canManageCustomers(getCurrentProfile())) {
+    showToast("Seu usuario nao possui permissao para salvar locais.");
+    return;
+  }
+
   const container = document.querySelector("#location-form-container");
   if (!container) {
     return;
@@ -441,6 +455,11 @@ function renderLocationForm() {
 }
 
 async function saveCliente(formData, existingCliente = {}) {
+  if (!canManageCustomers(getCurrentProfile())) {
+    showToast("Seu usuario nao possui permissao para salvar clientes.");
+    return;
+  }
+
   const profile = getCurrentProfile();
   const payload = {
     nome: requiredText(formData, "nome", "Informe o nome do cliente."),
@@ -499,6 +518,11 @@ async function saveCliente(formData, existingCliente = {}) {
 }
 
 async function saveLocal(formData, existingLocal = {}) {
+  if (!canManageCustomers(getCurrentProfile())) {
+    showToast("Seu usuario nao possui permissao para salvar locais.");
+    return;
+  }
+
   const profile = getCurrentProfile();
   const cliente = getSelectedClient();
   if (!cliente) {
@@ -565,6 +589,11 @@ async function saveLocal(formData, existingLocal = {}) {
 }
 
 async function toggleCliente(cliente) {
+  if (!canDeactivateCustomers(getCurrentProfile())) {
+    showToast("Apenas administrador pode inativar ou reativar clientes.");
+    return;
+  }
+
   const profile = getCurrentProfile();
   const { error } = await supabaseClient
     .from("clientes")
@@ -581,6 +610,11 @@ async function toggleCliente(cliente) {
 }
 
 async function toggleLocal(local) {
+  if (!canDeactivateCustomers(getCurrentProfile())) {
+    showToast("Apenas administrador pode inativar ou reativar locais.");
+    return;
+  }
+
   const profile = getCurrentProfile();
   const cliente = getSelectedClient();
   const { error } = await supabaseClient

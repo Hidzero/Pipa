@@ -1,6 +1,6 @@
 import { enqueueSupabaseMutation, renderConnectionStatus } from "./offline.js";
 import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
-import { canManageOperations } from "./permissions.js";
+import { canCancelOrders, canCreateOrders, canEditOrderFinancials, canEditOrderOperations } from "./permissions.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -63,7 +63,7 @@ export async function renderPedidosPage() {
     return;
   }
 
-  renderShell(canWriteOrders());
+  renderShell(canCreateOrders(getCurrentProfile()));
   bindShellEvents();
   await Promise.all([loadClientes(), loadLocais()]);
   await loadPedidos();
@@ -280,8 +280,8 @@ function renderSelectedOrder() {
 
   const cliente = getCliente(pedido.cliente_id);
   const local = getLocal(pedido.local_entrega_id);
-  const canWrite = canWriteOrders();
-  const canEdit = canWrite && pedido.status !== "cancelado" && pedido.status !== "concluido";
+  const canEdit = canEditOrderOperations(getCurrentProfile()) && pedido.status !== "cancelado" && pedido.status !== "concluido";
+  const canCancel = canCancelOrders(getCurrentProfile()) && pedido.status !== "cancelado";
 
   detail.innerHTML = `
     <section class="panel">
@@ -290,10 +290,10 @@ function renderSelectedOrder() {
           <h2 class="panel-title">${escapeHtml(cliente?.nome || "Pedido")}</h2>
           <p class="field-hint">${formatOrderStatus(pedido.status)} · ${formatCurrency(pedido.valor_total)}</p>
         </div>
-        ${canWrite ? `
+        ${canEdit || canCancel ? `
           <div class="inline-actions">
             ${canEdit ? `<button class="ghost-button compact-button" type="button" id="edit-order-button">Editar</button>` : ""}
-            ${pedido.status !== "cancelado" ? `<button class="ghost-button compact-button danger-text" type="button" id="cancel-order-button">Cancelar</button>` : ""}
+            ${canCancel ? `<button class="ghost-button compact-button danger-text" type="button" id="cancel-order-button">Cancelar</button>` : ""}
           </div>
         ` : ""}
       </div>
@@ -331,6 +331,11 @@ function renderSelectedOrder() {
 }
 
 function renderOrderForm() {
+  if (!canEditOrderOperations(getCurrentProfile())) {
+    showToast("Seu usuario nao possui permissao para editar pedidos.");
+    return;
+  }
+
   const container = document.querySelector("#order-form-container");
   if (!container) {
     return;
@@ -339,6 +344,8 @@ function renderOrderForm() {
   const isEdit = orderState.formMode && orderState.formMode !== "new";
   const pedido = isEdit ? orderState.pedidos.find((item) => item.id === orderState.formMode) : {};
   const selectedClienteId = pedido?.cliente_id || orderState.clientes[0]?.id || "";
+  const canEditFinancials = canEditOrderFinancials(getCurrentProfile());
+  const statusOptions = getOrderStatusOptionsForForm();
 
   container.innerHTML = `
     <section class="panel">
@@ -352,10 +359,10 @@ function renderOrderForm() {
           ${selectField("local_entrega_id", "Local de entrega", pedido?.local_entrega_id || "", getLocalOptions(selectedClienteId))}
           ${inputField("quantidade_solicitada_litros", "Quantidade em litros", pedido?.quantidade_solicitada_litros, "number", true, "1")}
           ${inputField("data_hora_solicitada", "Data e horario", toDateTimeLocal(pedido?.data_hora_solicitada), "datetime-local")}
-          ${inputField("valor_total", "Valor", pedido?.valor_total ?? 0, "number", true, "0.01")}
-          ${selectField("forma_pagamento", "Forma de pagamento", pedido?.forma_pagamento || "", paymentMethods)}
+          ${canEditFinancials ? inputField("valor_total", "Valor", pedido?.valor_total ?? 0, "number", true, "0.01") : readonlyField("Valor", formatCurrency(pedido?.valor_total || 0))}
+          ${canEditFinancials ? selectField("forma_pagamento", "Forma de pagamento", pedido?.forma_pagamento || "", paymentMethods) : readonlyField("Forma de pagamento", formatPaymentMethod(pedido?.forma_pagamento))}
           ${selectField("prioridade", "Prioridade", pedido?.prioridade || "normal", priorities)}
-          ${selectField("status", "Status", pedido?.status || "aguardando_confirmacao", orderStatuses)}
+          ${selectField("status", "Status", pedido?.status || "aguardando_confirmacao", statusOptions)}
         </div>
         ${textareaField("observacoes", "Observacoes", pedido?.observacoes)}
         <button class="button" type="submit">${isEdit ? "Salvar pedido" : "Cadastrar pedido"}</button>
@@ -385,14 +392,20 @@ function renderOrderForm() {
 }
 
 async function saveOrder(formData, existingOrder = {}) {
+  if (!canEditOrderOperations(getCurrentProfile())) {
+    showToast("Seu usuario nao possui permissao para salvar pedidos.");
+    return;
+  }
+
   const profile = getCurrentProfile();
+  const canEditFinancials = canEditOrderFinancials(profile);
   const payload = {
     cliente_id: requiredText(formData, "cliente_id", "Selecione um cliente."),
     local_entrega_id: requiredText(formData, "local_entrega_id", "Selecione um local de entrega."),
     quantidade_solicitada_litros: positiveInteger(formData, "quantidade_solicitada_litros", "Informe a quantidade em litros."),
     data_hora_solicitada: optionalDateTime(formData, "data_hora_solicitada"),
-    valor_total: nonNegativeNumber(formData, "valor_total", "Informe um valor valido."),
-    forma_pagamento: optionalText(formData, "forma_pagamento"),
+    valor_total: canEditFinancials ? nonNegativeNumber(formData, "valor_total", "Informe um valor valido.") : Number(existingOrder?.valor_total || 0),
+    forma_pagamento: canEditFinancials ? optionalText(formData, "forma_pagamento") : existingOrder?.forma_pagamento || null,
     prioridade: String(formData.get("prioridade") || "normal"),
     status: String(formData.get("status") || "aguardando_confirmacao"),
     observacoes: optionalText(formData, "observacoes")
@@ -446,6 +459,11 @@ async function saveOrder(formData, existingOrder = {}) {
 }
 
 async function cancelOrder(pedido) {
+  if (!canCancelOrders(getCurrentProfile())) {
+    showToast("Apenas administrador pode cancelar pedidos.");
+    return;
+  }
+
   const profile = getCurrentProfile();
   const reason = window.prompt("Informe o motivo do cancelamento:");
   if (reason === null) {
@@ -512,7 +530,7 @@ function getLocalOptions(clienteId) {
 }
 
 function canWriteOrders() {
-  return canManageOperations(getCurrentProfile());
+  return canCreateOrders(getCurrentProfile());
 }
 
 function updateCountLabel(text) {
@@ -531,6 +549,15 @@ function inputField(name, label, value = "", type = "text", required = false, st
   `;
 }
 
+function readonlyField(label, value = "-") {
+  return `
+    <div class="field">
+      <label>${label}</label>
+      <div class="readonly-field">${escapeHtml(value || "-")}</div>
+    </div>
+  `;
+}
+
 function textareaField(name, label, value = "") {
   return `
     <div class="field">
@@ -538,6 +565,14 @@ function textareaField(name, label, value = "") {
       <textarea id="${name}" name="${name}">${escapeHtml(value || "")}</textarea>
     </div>
   `;
+}
+
+function getOrderStatusOptionsForForm() {
+  if (canCancelOrders(getCurrentProfile())) {
+    return orderStatuses;
+  }
+
+  return orderStatuses.filter(([value]) => !["cancelado", "concluido"].includes(value));
 }
 
 function selectField(name, label, selectedValue, options) {

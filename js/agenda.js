@@ -1,6 +1,6 @@
 import { renderConnectionStatus } from "./offline.js";
 import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
-import { canManageOperations } from "./permissions.js";
+import { canEditOrderFinancials, canManageSchedule } from "./permissions.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -406,7 +406,7 @@ function renderSelectedSchedule() {
         <div><dt>Motorista</dt><dd>${escapeHtml(getDriverName(item.motorista_id) || "-")}</dd></div>
         <div><dt>Caminhao</dt><dd>${escapeHtml(getTruckName(item.caminhao_id) || "-")}</dd></div>
         <div><dt>Quantidade</dt><dd>${formatLiters(pedido?.quantidade_solicitada_litros)}</dd></div>
-        <div><dt>Valor</dt><dd>${formatCurrency(pedido?.valor_total)}</dd></div>
+        ${canEditOrderFinancials(getCurrentProfile()) ? `<div><dt>Valor</dt><dd>${formatCurrency(pedido?.valor_total)}</dd></div>` : ""}
         <div><dt>Acesso</dt><dd>${escapeHtml(local?.informacoes_acesso || "-")}</dd></div>
         <div><dt>Observacoes da agenda</dt><dd>${escapeHtml(item.observacoes || "-")}</dd></div>
       </dl>
@@ -475,6 +475,11 @@ function renderScheduleForm() {
 }
 
 async function saveSchedule(formData, existingItem = {}) {
+  if (!canWriteSchedule()) {
+    showToast("Seu usuario nao possui permissao para salvar agendamentos.");
+    return;
+  }
+
   const profile = getCurrentProfile();
   const payload = {
     pedido_id: requiredText(formData, "pedido_id", "Selecione um pedido."),
@@ -536,6 +541,11 @@ async function markOrderAsScheduled(orderId) {
 }
 
 async function moveScheduleOrder(item, direction) {
+  if (!canWriteSchedule()) {
+    showToast("Seu usuario nao possui permissao para alterar ordem da agenda.");
+    return;
+  }
+
   const sameDay = getFilteredAgenda()
     .filter((agendaItem) => isSameDay(new Date(agendaItem.data_inicio), new Date(item.data_inicio)))
     .sort(compareAgendaItems);
@@ -776,7 +786,7 @@ function buildWhatsAppLink(phone, name, item) {
 }
 
 function canWriteSchedule() {
-  return canManageOperations(getCurrentProfile());
+  return canManageSchedule(getCurrentProfile());
 }
 
 function requiredText(formData, field, message) {

@@ -1,6 +1,6 @@
 import { enqueueSupabaseMutation, renderConnectionStatus } from "./offline.js";
 import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
-import { canViewFinance } from "./permissions.js";
+import { canManageFinance } from "./permissions.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -1355,7 +1355,7 @@ function getReceipt(payment) {
 }
 
 function canWriteFinance() {
-  return canViewFinance(getCurrentProfile());
+  return canManageFinance(getCurrentProfile());
 }
 
 function updateCountLabel(text) {
