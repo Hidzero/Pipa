@@ -90,6 +90,10 @@ export function canManageFinance(profile) {
   return isAdmin(profile) || isFinance(profile);
 }
 
+export function canViewAudit(profile) {
+  return isAdmin(profile);
+}
+
 export function canAccessRouteByProfile(route, profile) {
   if (!profile) {
     return false;

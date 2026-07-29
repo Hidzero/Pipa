@@ -389,7 +389,8 @@ function getQuickActions(profile) {
       { route: "/pedidos", label: "Novo pedido", className: "ghost-button" },
       { route: "/rota", label: "Ver rota", className: "ghost-button" },
       { route: "/financeiro", label: "Financeiro", className: "ghost-button" },
-      { route: "/relatorios", label: "Relatorios", className: "ghost-button" }
+      { route: "/relatorios", label: "Relatorios", className: "ghost-button" },
+      { route: "/auditoria", label: "Auditoria", className: "ghost-button" }
     ];
   }
 

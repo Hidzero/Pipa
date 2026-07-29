@@ -12,6 +12,7 @@ const titleByRoute = {
   "/rota": "Rota do motorista",
   "/financeiro": "Financeiro",
   "/relatorios": "Relatorios",
+  "/auditoria": "Auditoria",
   "/sem-acesso": "Sem acesso"
 };
 
@@ -24,7 +25,8 @@ const navigationItems = [
   { route: "/agenda", label: "Agenda" },
   { route: "/rota", label: "Rota" },
   { route: "/financeiro", label: "Financeiro" },
-  { route: "/relatorios", label: "Relatorios" }
+  { route: "/relatorios", label: "Relatorios" },
+  { route: "/auditoria", label: "Auditoria" }
 ];
 
 export function setPageTitle(route) {

@@ -1,4 +1,4 @@
-const CACHE_NAME = "pipa-entregas-v22";
+const CACHE_NAME = "pipa-entregas-v23";
 const SUPABASE_CDN = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
 
 const APP_SHELL = [
@@ -8,6 +8,7 @@ const APP_SHELL = [
   "./css/styles.css",
   "./js/app.js",
   "./js/agenda.js",
+  "./js/auditoria.js",
   "./js/auth.js",
   "./js/caminhoes.js",
   "./js/clientes.js",

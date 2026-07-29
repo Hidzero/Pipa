@@ -1,5 +1,6 @@
 import { signIn, requestPasswordReset, updatePassword } from "./auth.js";
 import { renderAgendaPage } from "./agenda.js";
+import { renderAuditoriaPage } from "./auditoria.js";
 import { renderCaminhoesPage } from "./caminhoes.js";
 import { renderClientesPage } from "./clientes.js";
 import { renderDashboardPage } from "./dashboard.js";
@@ -15,7 +16,7 @@ import { renderNavigation, setActiveNav, setAuthenticatedLayout, setPageTitle, s
 
 const app = document.querySelector("#app");
 
-const protectedRoutes = new Set(["/dashboard", "/clientes", "/funcionarios", "/caminhoes", "/pedidos", "/agenda", "/rota", "/financeiro", "/relatorios"]);
+const protectedRoutes = new Set(["/dashboard", "/clientes", "/funcionarios", "/caminhoes", "/pedidos", "/agenda", "/rota", "/financeiro", "/relatorios", "/auditoria"]);
 
 export function getRoute() {
   const hash = window.location.hash.replace("#", "");
@@ -78,6 +79,8 @@ export function renderRoute() {
     renderFinanceiroPage();
   } else if (route === "/relatorios") {
     renderRelatoriosPage();
+  } else if (route === "/auditoria") {
+    renderAuditoriaPage();
   } else if (route === "/sem-acesso") {
     renderAccessDenied();
   } else {
