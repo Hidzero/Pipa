@@ -42,6 +42,10 @@ export function canManageCompany(profile) {
   return isAdmin(profile);
 }
 
+export function canManageCompanySettings(profile) {
+  return isAdmin(profile);
+}
+
 export function canManageCustomers(profile) {
   return isAdmin(profile) || isSupervisor(profile);
 }
@@ -97,6 +101,10 @@ export function canViewAudit(profile) {
 export function canAccessRouteByProfile(route, profile) {
   if (!profile) {
     return false;
+  }
+
+  if (route === "/sincronizacao") {
+    return true;
   }
 
   if (isAdmin(profile)) {

@@ -390,7 +390,9 @@ function getQuickActions(profile) {
       { route: "/rota", label: "Ver rota", className: "ghost-button" },
       { route: "/financeiro", label: "Financeiro", className: "ghost-button" },
       { route: "/relatorios", label: "Relatorios", className: "ghost-button" },
-      { route: "/auditoria", label: "Auditoria", className: "ghost-button" }
+      { route: "/auditoria", label: "Auditoria", className: "ghost-button" },
+      { route: "/configuracoes", label: "Configuracoes", className: "ghost-button" },
+      { route: "/sincronizacao", label: "Sincronizacao", className: "ghost-button" }
     ];
   }
 
@@ -400,20 +402,23 @@ function getQuickActions(profile) {
       { route: "/pedidos", label: "Novo pedido", className: "secondary-button" },
       { route: "/agenda", label: "Organizar agenda", className: "ghost-button" },
       { route: "/funcionarios", label: "Minha equipe", className: "ghost-button" },
-      { route: "/caminhoes", label: "Ver frota", className: "ghost-button" }
+      { route: "/caminhoes", label: "Ver frota", className: "ghost-button" },
+      { route: "/sincronizacao", label: "Sincronizacao", className: "ghost-button" }
     ];
   }
 
   if (canViewFinance(profile)) {
     return [
       { route: "/financeiro", label: "Ver financeiro", className: "button" },
-      { route: "/relatorios", label: "Ver relatorios", className: "secondary-button" }
+      { route: "/relatorios", label: "Ver relatorios", className: "secondary-button" },
+      { route: "/sincronizacao", label: "Sincronizacao", className: "ghost-button" }
     ];
   }
 
   if (isDriver(profile)) {
     return [
-      { route: "/rota", label: "Ver entregas de hoje", className: "button" }
+      { route: "/rota", label: "Ver entregas de hoje", className: "button" },
+      { route: "/sincronizacao", label: "Sincronizacao", className: "ghost-button" }
     ];
   }
 

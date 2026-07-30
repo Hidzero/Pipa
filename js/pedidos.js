@@ -1,3 +1,4 @@
+import { buildWhatsAppAnchor, loadCompanyContext } from "./empresa.js";
 import { enqueueSupabaseMutation, renderConnectionStatus } from "./offline.js";
 import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
 import { canCancelOrders, canCreateOrders, canEditOrderFinancials, canEditOrderOperations } from "./permissions.js";
@@ -65,7 +66,7 @@ export async function renderPedidosPage() {
 
   renderShell(canCreateOrders(getCurrentProfile()));
   bindShellEvents();
-  await Promise.all([loadClientes(), loadLocais()]);
+  await Promise.all([loadCompanyContext(), loadClientes(), loadLocais()]);
   await loadPedidos();
 }
 
@@ -600,14 +601,13 @@ function buildMapLink(latitude, longitude, address) {
 }
 
 function buildWhatsAppLink(phone, name, pedido) {
-  const digits = onlyDigits(phone);
-  if (!digits) {
-    return `<span class="ghost-button compact-button disabled-link">Sem WhatsApp</span>`;
-  }
-
-  const phoneNumber = digits.startsWith("55") ? digits : `55${digits}`;
-  const message = encodeURIComponent(`Ola, ${name || "cliente"}. Seu pedido de ${formatLiters(pedido.quantidade_solicitada_litros)} esta registrado para ${formatDateTime(pedido.data_hora_solicitada)}.`);
-  return `<a class="ghost-button compact-button" target="_blank" rel="noopener" href="https://wa.me/${phoneNumber}?text=${message}">WhatsApp</a>`;
+  return buildWhatsAppAnchor(phone, "confirmacao", {
+    cliente: name || "cliente",
+    quantidade: formatLiters(pedido.quantidade_solicitada_litros),
+    data: formatDateTime(pedido.data_hora_solicitada),
+    valor: formatCurrency(pedido.valor_total),
+    numero_entrega: pedido.id?.slice(0, 8) || "-"
+  }, "Confirmar WhatsApp");
 }
 
 function requiredText(formData, field, message) {
@@ -711,10 +711,6 @@ function normalize(value) {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
-}
-
-function onlyDigits(value) {
-  return String(value || "").replace(/\D/g, "");
 }
 
 function escapeHtml(value) {

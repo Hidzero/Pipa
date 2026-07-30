@@ -3,12 +3,14 @@ import { renderAgendaPage } from "./agenda.js";
 import { renderAuditoriaPage } from "./auditoria.js";
 import { renderCaminhoesPage } from "./caminhoes.js";
 import { renderClientesPage } from "./clientes.js";
+import { renderConfiguracoesPage } from "./configuracoes.js";
 import { renderDashboardPage } from "./dashboard.js";
 import { renderFinanceiroPage } from "./financeiro.js";
 import { renderFuncionariosPage } from "./funcionarios.js";
 import { renderPedidosPage } from "./pedidos.js";
 import { renderRelatoriosPage } from "./relatorios.js";
 import { renderRotaPage } from "./rota.js";
+import { renderSincronizacaoPage } from "./sincronizacao.js";
 import { canAccessRouteByProfile } from "./permissions.js";
 import { getCurrentProfile, getState } from "./state.js";
 import { isSupabaseConfigured } from "./supabase.js";
@@ -16,7 +18,7 @@ import { renderNavigation, setActiveNav, setAuthenticatedLayout, setPageTitle, s
 
 const app = document.querySelector("#app");
 
-const protectedRoutes = new Set(["/dashboard", "/clientes", "/funcionarios", "/caminhoes", "/pedidos", "/agenda", "/rota", "/financeiro", "/relatorios", "/auditoria"]);
+const protectedRoutes = new Set(["/dashboard", "/clientes", "/funcionarios", "/caminhoes", "/pedidos", "/agenda", "/rota", "/financeiro", "/relatorios", "/auditoria", "/configuracoes", "/sincronizacao"]);
 
 export function getRoute() {
   const hash = window.location.hash.replace("#", "");
@@ -81,6 +83,10 @@ export function renderRoute() {
     renderRelatoriosPage();
   } else if (route === "/auditoria") {
     renderAuditoriaPage();
+  } else if (route === "/configuracoes") {
+    renderConfiguracoesPage();
+  } else if (route === "/sincronizacao") {
+    renderSincronizacaoPage();
   } else if (route === "/sem-acesso") {
     renderAccessDenied();
   } else {

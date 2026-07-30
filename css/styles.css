@@ -228,6 +228,14 @@ a {
   background: var(--primary-dark);
 }
 
+button:disabled,
+.button:disabled,
+.secondary-button:disabled,
+.ghost-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
 .secondary-button {
   color: var(--primary-dark);
   background: var(--primary-soft);
@@ -458,6 +466,16 @@ a {
   gap: 10px;
 }
 
+.company-logo-preview {
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
 .list {
   display: grid;
   gap: 10px;
@@ -611,6 +629,47 @@ a {
   border: 1px solid #fed7aa;
   border-radius: var(--radius);
   font-weight: 700;
+}
+
+.sync-list {
+  margin-top: 14px;
+}
+
+.sync-item {
+  gap: 10px;
+}
+
+.sync-notice {
+  margin-top: 12px;
+}
+
+.sync-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.86rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.sync-payload {
+  padding: 10px;
+  background: #f8faf9;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.sync-payload summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.sync-payload pre {
+  max-height: 220px;
+  margin: 10px 0 0;
+  overflow: auto;
+  color: var(--muted);
+  font-size: 0.78rem;
+  white-space: pre-wrap;
 }
 
 .report-list {

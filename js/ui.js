@@ -13,6 +13,8 @@ const titleByRoute = {
   "/financeiro": "Financeiro",
   "/relatorios": "Relatorios",
   "/auditoria": "Auditoria",
+  "/configuracoes": "Configuracoes",
+  "/sincronizacao": "Sincronizacao",
   "/sem-acesso": "Sem acesso"
 };
 
@@ -26,7 +28,9 @@ const navigationItems = [
   { route: "/rota", label: "Rota" },
   { route: "/financeiro", label: "Financeiro" },
   { route: "/relatorios", label: "Relatorios" },
-  { route: "/auditoria", label: "Auditoria" }
+  { route: "/auditoria", label: "Auditoria" },
+  { route: "/configuracoes", label: "Ajustes" },
+  { route: "/sincronizacao", label: "Sync" }
 ];
 
 export function setPageTitle(route) {

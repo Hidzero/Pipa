@@ -3,6 +3,9 @@ import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
 
 const QUEUE_KEY = "pipa.offlineQueue";
+const QUEUE_UPDATED_EVENT = "pipa:offline-queue-updated";
+
+let isSyncing = false;
 
 export function readQueue() {
   try {
@@ -12,21 +15,46 @@ export function readQueue() {
   }
 }
 
+function writeQueue(queue) {
+  localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+  renderConnectionStatus();
+  window.dispatchEvent(new CustomEvent(QUEUE_UPDATED_EVENT, { detail: { queue } }));
+}
+
 export function enqueueOfflineAction(action) {
   const queue = readQueue();
   queue.push({
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
+    originRoute: window.location.hash || "#/dashboard",
     attempts: 0,
+    status: "pendente",
     ...action
   });
-  localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
-  renderConnectionStatus();
+  writeQueue(queue);
 }
 
 export function clearQueue() {
   localStorage.removeItem(QUEUE_KEY);
   renderConnectionStatus();
+  window.dispatchEvent(new CustomEvent(QUEUE_UPDATED_EVENT, { detail: { queue: [] } }));
+}
+
+export function removeQueuedAction(id) {
+  const nextQueue = readQueue().filter((action) => action.id !== id);
+  writeQueue(nextQueue);
+}
+
+export function getQueueSummary() {
+  const queue = readQueue();
+  const failed = queue.filter((action) => action.lastError).length;
+  const withAttempts = queue.filter((action) => Number(action.attempts || 0) > 0).length;
+  return {
+    total: queue.length,
+    failed,
+    withAttempts,
+    pending: queue.length - failed
+  };
 }
 
 export function enqueueSupabaseMutation({ table, operation, payload, match = null, options = null, label = "Alteracao" }) {
@@ -42,17 +70,27 @@ export function enqueueSupabaseMutation({ table, operation, payload, match = nul
   showToast(`${label} salvo localmente. Sera sincronizado quando a internet voltar.`);
 }
 
-export async function syncOfflineQueue() {
+export async function syncOfflineQueue({ actionId = null, silent = false } = {}) {
+  if (isSyncing) {
+    return { synced: 0, failed: readQueue().length, skipped: true };
+  }
+
   const queue = readQueue();
   if (!queue.length || !navigator.onLine || !isSupabaseConfigured()) {
     renderConnectionStatus();
     return { synced: 0, failed: queue.length };
   }
 
+  isSyncing = true;
   const remaining = [];
   let synced = 0;
 
   for (const action of queue) {
+    if (actionId && action.id !== actionId) {
+      remaining.push(action);
+      continue;
+    }
+
     try {
       await executeQueuedAction(action);
       synced += 1;
@@ -60,21 +98,22 @@ export async function syncOfflineQueue() {
       remaining.push({
         ...action,
         attempts: Number(action.attempts || 0) + 1,
+        status: "erro",
         lastError: error.message || "Falha ao sincronizar",
         lastAttemptAt: new Date().toISOString()
       });
     }
   }
 
-  localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
-  renderConnectionStatus();
+  isSyncing = false;
+  writeQueue(remaining);
 
-  if (synced > 0) {
+  if (synced > 0 && !silent) {
     showToast(`${synced} alteracao${synced === 1 ? "" : "es"} sincronizada${synced === 1 ? "" : "s"}.`);
     window.dispatchEvent(new CustomEvent("pipa:offline-sync-complete", { detail: { synced, failed: remaining.length } }));
   }
 
-  if (remaining.length > 0) {
+  if (remaining.length > 0 && !silent) {
     showToast(`${remaining.length} alteracao${remaining.length === 1 ? "" : "es"} ainda pendente${remaining.length === 1 ? "" : "s"}.`);
   }
 
@@ -125,6 +164,7 @@ export function renderConnectionStatus() {
 
   if (pending) {
     pending.textContent = `${queue.length} pendente${queue.length === 1 ? "" : "s"}`;
+    pending.title = queue.length ? "Existem alteracoes aguardando sincronizacao." : "Sem pendencias de sincronizacao.";
   }
 }
 

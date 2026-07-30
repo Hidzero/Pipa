@@ -1,3 +1,4 @@
+import { buildWhatsAppAnchor, loadCompanyContext } from "./empresa.js";
 import { renderConnectionStatus } from "./offline.js";
 import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
 import { canEditOrderFinancials, canManageSchedule } from "./permissions.js";
@@ -60,7 +61,7 @@ export async function renderAgendaPage() {
 
   renderShell(canWriteSchedule());
   bindShellEvents();
-  await Promise.all([loadClientes(), loadLocais(), loadMotoristas(), loadCaminhoes(), loadPedidos()]);
+  await Promise.all([loadCompanyContext(), loadClientes(), loadLocais(), loadMotoristas(), loadCaminhoes(), loadPedidos()]);
   await loadAgenda();
 }
 
@@ -775,14 +776,14 @@ function buildMapLink(latitude, longitude, address) {
 }
 
 function buildWhatsAppLink(phone, name, item) {
-  const digits = onlyDigits(phone);
-  if (!digits) {
-    return `<span class="ghost-button compact-button disabled-link">Sem WhatsApp</span>`;
-  }
-
-  const phoneNumber = digits.startsWith("55") ? digits : `55${digits}`;
-  const message = encodeURIComponent(`Ola, ${name || "cliente"}. Sua entrega esta agendada para ${formatDateTime(item.data_inicio)}.`);
-  return `<a class="ghost-button compact-button" target="_blank" rel="noopener" href="https://wa.me/${phoneNumber}?text=${message}">WhatsApp</a>`;
+  const pedido = getPedido(item.pedido_id);
+  return buildWhatsAppAnchor(phone, "confirmacao", {
+    cliente: name || "cliente",
+    quantidade: formatLiters(pedido?.quantidade_solicitada_litros),
+    data: formatDateTime(item.data_inicio),
+    valor: formatCurrency(pedido?.valor_total),
+    numero_entrega: item.id?.slice(0, 8) || "-"
+  }, "Confirmar WhatsApp");
 }
 
 function canWriteSchedule() {
@@ -909,10 +910,6 @@ function toInputDate(date) {
 
 function isSameDay(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-
-function onlyDigits(value) {
-  return String(value || "").replace(/\D/g, "");
 }
 
 function escapeHtml(value) {

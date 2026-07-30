@@ -1,3 +1,4 @@
+import { buildMessage, buildWhatsAppAnchor, getReceiptCompanyData, loadCompanyContext } from "./empresa.js";
 import { enqueueSupabaseMutation, renderConnectionStatus } from "./offline.js";
 import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
 import { canManageFinance } from "./permissions.js";
@@ -68,7 +69,7 @@ export async function renderFinanceiroPage() {
 
   renderShell(canWriteFinance());
   bindShellEvents();
-  await Promise.all([loadClientes(), loadLocais(), loadPedidos(), loadEntregas(), loadMotoristas(), loadCaminhoes()]);
+  await Promise.all([loadCompanyContext(), loadClientes(), loadLocais(), loadPedidos(), loadEntregas(), loadMotoristas(), loadCaminhoes()]);
   await Promise.all([loadPagamentos(), loadRecibos(), loadCombustiveis(), loadDespesas()]);
 }
 
@@ -526,7 +527,7 @@ function renderSelectedPayment() {
         ${canWrite && payment.status !== "cancelado" ? `<button class="ghost-button compact-button danger-text" type="button" id="cancel-payment-button">Cancelar pagamento</button>` : ""}
         ${canGenerateReceipt ? `<button class="button compact-button" type="button" id="generate-receipt-button">Gerar recibo PDF</button>` : ""}
         ${receipt?.pdf_path ? `<button class="ghost-button compact-button" type="button" id="download-receipt-button">Baixar recibo</button>` : ""}
-        ${buildWhatsAppReceiptLink(cliente, payment, entrega, local)}
+        ${buildWhatsAppReceiptLink(cliente, payment, entrega, local, receipt)}
       </div>
     </section>
   `;
@@ -547,6 +548,10 @@ function renderSelectedPayment() {
 
   document.querySelector("#download-receipt-button")?.addEventListener("click", async () => {
     await downloadReceipt(receipt);
+  });
+
+  document.querySelector("#share-receipt-button")?.addEventListener("click", async () => {
+    await shareReceipt(receipt, cliente, payment, entrega, local);
   });
 }
 
@@ -1165,6 +1170,7 @@ async function generateReceipt(payment) {
   const local = getLocal(entrega.local_entrega_id);
   const pedido = getPedido(entrega.pedido_id || payment.pedido_id);
   const receiptData = {
+    empresa: getReceiptCompanyData(),
     numeroEntrega: entrega.numero_entrega || entrega.id.slice(0, 8),
     cliente: cliente?.nome || "Cliente",
     endereco: local?.endereco || "-",
@@ -1174,7 +1180,8 @@ async function generateReceipt(payment) {
     valorPago: formatCurrency(payment.valor_pago),
     formaPagamento: formatPaymentMethod(payment.forma_pagamento),
     motorista: getDriverName(entrega.motorista_id) || "-",
-    status: formatPaymentStatus(payment.status)
+    status: formatPaymentStatus(payment.status),
+    observacao: getReceiptCompanyData().textoRecibo
   };
 
   const pdfBlob = createReceiptPdf(receiptData);
@@ -1225,6 +1232,40 @@ async function downloadReceipt(receipt) {
   }
 
   downloadBlob(data, `recibo-${receipt.numero_recibo || "entrega"}.pdf`);
+}
+
+async function shareReceipt(receipt, cliente, payment, entrega, local) {
+  const digits = onlyDigits(cliente?.telefone);
+  if (!digits) {
+    showToast("Cliente sem telefone para WhatsApp.");
+    return;
+  }
+
+  let receiptUrl = "";
+  if (receipt?.pdf_path) {
+    const { data, error } = await supabaseClient.storage
+      .from("recibos")
+      .createSignedUrl(receipt.pdf_path, 60 * 60 * 24 * 7);
+
+    if (error) {
+      showToast(error.message || "Nao foi possivel gerar link do recibo.");
+      return;
+    }
+
+    receiptUrl = data?.signedUrl || "";
+  }
+
+  const phoneNumber = digits.startsWith("55") ? digits : `55${digits}`;
+  const baseText = buildMessage("recibo", getReceiptVariables(cliente, payment, entrega, local, receiptUrl));
+  const text = receiptUrl && !baseText.includes(receiptUrl) ? `${baseText}\n\nRecibo: ${receiptUrl}` : baseText;
+  window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(text)}`, "_blank", "noopener");
+
+  if (receipt?.id) {
+    await supabaseClient
+      .from("recibos")
+      .update({ compartilhado_whatsapp_em: new Date().toISOString(), updated_by: getCurrentProfile().id })
+      .eq("id", receipt.id);
+  }
 }
 
 function getFilteredPayments() {
@@ -1418,23 +1459,44 @@ function selectField(name, label, selectedValue, options) {
   `;
 }
 
-function buildWhatsAppReceiptLink(cliente, payment, entrega, local) {
-  const digits = onlyDigits(cliente?.telefone);
-  if (!digits) {
-    return `<span class="ghost-button compact-button disabled-link">Sem WhatsApp</span>`;
+function buildWhatsAppReceiptLink(cliente, payment, entrega, local, receipt) {
+  if (receipt?.pdf_path) {
+    const digits = onlyDigits(cliente?.telefone);
+    if (!digits) {
+      return `<span class="ghost-button compact-button disabled-link">Sem WhatsApp</span>`;
+    }
+
+    return `<button class="ghost-button compact-button" type="button" id="share-receipt-button">Compartilhar WhatsApp</button>`;
   }
 
-  const phoneNumber = digits.startsWith("55") ? digits : `55${digits}`;
-  const message = encodeURIComponent(
-    `Ola, ${cliente?.nome || "cliente"}. Recibo da entrega ${entrega?.numero_entrega || "-"}: ${formatLiters(entrega?.quantidade_entregue_litros)}, ${formatCurrency(payment.valor_total)}, pagamento ${formatPaymentStatus(payment.status)}. Endereco: ${local?.endereco || "-"}`
-  );
-  return `<a class="ghost-button compact-button" target="_blank" rel="noopener" href="https://wa.me/${phoneNumber}?text=${message}">WhatsApp recibo</a>`;
+  return buildWhatsAppAnchor(cliente?.telefone, "recibo", getReceiptVariables(cliente, payment, entrega, local), "WhatsApp recibo");
+}
+
+function getReceiptVariables(cliente, payment, entrega, local, reciboUrl = "") {
+  return {
+    cliente: cliente?.nome || "cliente",
+    quantidade: formatLiters(entrega?.quantidade_entregue_litros),
+    valor: formatCurrency(payment.valor_total),
+    valor_pago: formatCurrency(payment.valor_pago),
+    pagamento: formatPaymentStatus(payment.status),
+    endereco: local?.endereco || "-",
+    data: formatDate(entrega?.created_at || payment.data_pagamento || payment.created_at),
+    motorista: getDriverName(entrega?.motorista_id) || "-",
+    numero_entrega: entrega?.numero_entrega || "-",
+    recibo_url: reciboUrl
+  };
 }
 
 function createReceiptPdf(data) {
+  const empresa = data.empresa || {};
   const lines = [
-    "RECIBO DE ENTREGA DE AGUA",
+    empresa.nome || "RECIBO DE ENTREGA DE AGUA",
+    empresa.documento ? `Documento: ${empresa.documento}` : "",
+    empresa.telefone ? `Telefone/WhatsApp: ${empresa.telefone}` : "",
+    empresa.email ? `E-mail: ${empresa.email}` : "",
+    empresa.endereco ? `Endereco: ${empresa.endereco}` : "",
     "",
+    "RECIBO DE ENTREGA DE AGUA",
     `Entrega: ${data.numeroEntrega}`,
     `Cliente: ${data.cliente}`,
     `Endereco: ${data.endereco}`,
@@ -1446,8 +1508,8 @@ function createReceiptPdf(data) {
     `Motorista: ${data.motorista}`,
     `Status do pagamento: ${data.status}`,
     "",
-    "Documento gerado pelo app Pipa Entregas."
-  ];
+    data.observacao || "Documento gerado pelo app Pipa Entregas."
+  ].filter((line) => line !== "");
 
   const content = [
     "BT",

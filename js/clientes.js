@@ -1,3 +1,4 @@
+import { buildWhatsAppAnchor, loadCompanyContext } from "./empresa.js";
 import { enqueueSupabaseMutation, renderConnectionStatus } from "./offline.js";
 import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
 import { canDeactivateCustomers, canManageCustomers } from "./permissions.js";
@@ -46,6 +47,7 @@ export async function renderClientesPage() {
 
   renderShell();
   bindShellEvents();
+  await loadCompanyContext();
   await loadClientes();
 }
 
@@ -696,14 +698,7 @@ function buildMapLink(latitude, longitude, address) {
 }
 
 function buildWhatsAppLink(phone, name) {
-  const digits = onlyDigits(phone);
-  if (!digits) {
-    return `<span class="ghost-button compact-button disabled-link">Sem WhatsApp</span>`;
-  }
-
-  const phoneNumber = digits.startsWith("55") ? digits : `55${digits}`;
-  const message = encodeURIComponent(`Ola, ${name}. Tudo bem? Aqui e da Agua Clara Caminhao-Pipa.`);
-  return `<a class="ghost-button compact-button" target="_blank" rel="noopener" href="https://wa.me/${phoneNumber}?text=${message}">WhatsApp</a>`;
+  return buildWhatsAppAnchor(phone, "contato", { cliente: name || "cliente" }, "WhatsApp");
 }
 
 function requiredText(formData, field, message) {
@@ -754,10 +749,6 @@ function normalize(value) {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
-}
-
-function onlyDigits(value) {
-  return String(value || "").replace(/\D/g, "");
 }
 
 function escapeHtml(value) {
