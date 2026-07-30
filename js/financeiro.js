@@ -617,6 +617,11 @@ function renderPaymentForm() {
 }
 
 async function savePayment(formData, existingPayment = {}) {
+  if (!canWriteFinance()) {
+    showToast("Seu usuario nao possui permissao para salvar pagamentos.");
+    return;
+  }
+
   const profile = getCurrentProfile();
   const source = getSourceFromValue(requiredText(formData, "source", "Selecione um pedido ou entrega."));
   if (!source) {
@@ -724,6 +729,11 @@ function warnOfflineFile(formData, message) {
 }
 
 async function cancelPayment(payment) {
+  if (!canWriteFinance()) {
+    showToast("Seu usuario nao possui permissao para cancelar pagamentos.");
+    return;
+  }
+
   const profile = getCurrentProfile();
   const reason = window.prompt("Informe o motivo do cancelamento:");
   if (reason === null) {
@@ -965,6 +975,11 @@ function renderExpenseList() {
 }
 
 async function saveFuel(formData, existingFuel = {}) {
+  if (!canWriteFinance()) {
+    showToast("Seu usuario nao possui permissao para salvar abastecimentos.");
+    return;
+  }
+
   const profile = getCurrentProfile();
   const quilometragem = nonNegativeNumber(formData, "fuel_quilometragem", "Informe uma quilometragem valida.");
   const litros = positiveNumber(formData, "fuel_litros", "Informe a quantidade de litros.");
@@ -1041,6 +1056,11 @@ async function saveFuel(formData, existingFuel = {}) {
 }
 
 async function saveExpense(formData, existingExpense = {}) {
+  if (!canWriteFinance()) {
+    showToast("Seu usuario nao possui permissao para salvar despesas.");
+    return;
+  }
+
   const profile = getCurrentProfile();
   const valor = nonNegativeNumber(formData, "expense_valor", "Informe um valor valido.");
   if (valor === null) {
@@ -1133,6 +1153,11 @@ async function cancelExpense(id) {
 }
 
 async function cancelRecord(table, id, label) {
+  if (!canWriteFinance()) {
+    showToast("Seu usuario nao possui permissao para cancelar registros financeiros.");
+    return;
+  }
+
   const profile = getCurrentProfile();
   const reason = window.prompt("Informe o motivo do cancelamento:");
   if (reason === null) {
@@ -1159,6 +1184,11 @@ async function cancelRecord(table, id, label) {
 }
 
 async function generateReceipt(payment) {
+  if (!canWriteFinance()) {
+    showToast("Seu usuario nao possui permissao para gerar recibos.");
+    return;
+  }
+
   const profile = getCurrentProfile();
   const entrega = getEntrega(payment.entrega_id);
   if (!entrega) {

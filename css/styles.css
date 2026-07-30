@@ -836,7 +836,7 @@ button:disabled,
   }
 
   .report-toolbar {
-    grid-template-columns: 180px 180px auto;
+    grid-template-columns: repeat(3, minmax(160px, 1fr)) repeat(2, minmax(180px, 1fr)) auto auto;
   }
 
   .reservoir-row {

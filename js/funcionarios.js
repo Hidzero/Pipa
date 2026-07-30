@@ -547,6 +547,11 @@ function renderDriverAssignmentForm() {
 }
 
 function renderEmployeeForm() {
+  if (!canManageEmployees(getCurrentProfile())) {
+    showToast("Apenas administrador pode cadastrar ou editar funcionarios.");
+    return;
+  }
+
   const container = document.querySelector("#employee-form-container");
   if (!container) {
     return;
@@ -591,6 +596,11 @@ function renderEmployeeForm() {
 }
 
 async function saveEmployee(formData, existingEmployee = {}) {
+  if (!canManageEmployees(getCurrentProfile())) {
+    showToast("Apenas administrador pode salvar funcionarios.");
+    return;
+  }
+
   if (!navigator.onLine) {
     showToast("Cadastro de funcionario precisa de internet.");
     return;
@@ -642,6 +652,11 @@ async function saveEmployee(formData, existingEmployee = {}) {
 }
 
 async function updateEmployee(existingEmployee, payload) {
+  if (!canManageEmployees(getCurrentProfile())) {
+    showToast("Apenas administrador pode editar funcionarios.");
+    return;
+  }
+
   const currentProfile = getCurrentProfile();
   if (existingEmployee.id === currentProfile.id && payload.ativo === false) {
     showToast("Voce nao pode inativar seu proprio usuario.");
@@ -674,6 +689,11 @@ async function updateEmployee(existingEmployee, payload) {
 }
 
 async function resendEmployeeAccess(funcionario) {
+  if (!canManageEmployees(getCurrentProfile())) {
+    showToast("Apenas administrador pode reenviar acesso.");
+    return;
+  }
+
   if (!navigator.onLine) {
     showToast("Reenvio de acesso precisa de internet.");
     return;
@@ -698,6 +718,11 @@ async function resendEmployeeAccess(funcionario) {
 }
 
 async function toggleEmployee(funcionario) {
+  if (!canManageEmployees(getCurrentProfile())) {
+    showToast("Apenas administrador pode ativar ou inativar funcionarios.");
+    return;
+  }
+
   const currentProfile = getCurrentProfile();
   if (funcionario.id === currentProfile.id && funcionario.ativo) {
     showToast("Voce nao pode inativar seu proprio usuario.");

@@ -1,7 +1,7 @@
 import { buildWhatsAppAnchor, loadCompanyContext } from "./empresa.js";
 import { enqueueSupabaseMutation, renderConnectionStatus } from "./offline.js";
 import { bindPagination, getPageItems, normalizePage, renderPagination } from "./pagination.js";
-import { isDriverEmployee } from "./permissions.js";
+import { canOperateDeliveries, isAdmin, isDriverEmployee, isSupervisor } from "./permissions.js";
 import { getCurrentProfile } from "./state.js";
 import { supabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { showToast } from "./ui.js";
@@ -394,7 +394,7 @@ function renderSelectedRouteItem() {
       </div>
 
       <div class="route-actions">
-        ${buildStatusActions(pedido)}
+        ${buildStatusActions(item, pedido)}
       </div>
     </section>
   `;
@@ -410,7 +410,11 @@ function renderSelectedRouteItem() {
   });
 }
 
-function buildStatusActions(pedido) {
+function buildStatusActions(item, pedido) {
+  if (!canOperateRouteItem(item)) {
+    return `<div class="empty-state">Seu usuario pode visualizar esta entrega, mas nao pode alterar o status.</div>`;
+  }
+
   if (!pedido || ["cancelado", "concluido"].includes(pedido.status)) {
     return `<div class="empty-state">Pedido sem acao de rota disponivel.</div>`;
   }
@@ -434,6 +438,17 @@ async function updateOrderStatus(pedido, nextStatus) {
     return;
   }
 
+  const item = routeState.agenda.find((agendaItem) => agendaItem.pedido_id === pedido.id);
+  if (!canOperateRouteItem(item)) {
+    showToast("Seu usuario nao possui permissao para alterar esta entrega.");
+    return;
+  }
+
+  if (!isAllowedStatusTransition(pedido.status, nextStatus)) {
+    showToast("Transicao de status invalida para esta entrega.");
+    return;
+  }
+
   const { error } = await supabaseClient
     .from("pedidos")
     .update({ status: nextStatus })
@@ -451,6 +466,11 @@ async function updateOrderStatus(pedido, nextStatus) {
 }
 
 async function renderDeliveryForm(item) {
+  if (!canOperateRouteItem(item)) {
+    showToast("Seu usuario nao possui permissao para registrar esta entrega.");
+    return;
+  }
+
   const container = document.querySelector("#delivery-form-container");
   if (!container) {
     return;
@@ -563,6 +583,11 @@ async function loadDeliveryReservoirs(deliveryId) {
 }
 
 async function saveDelivery(item, formData, existingDelivery, existingReservoirs) {
+  if (!canOperateRouteItem(item)) {
+    showToast("Seu usuario nao possui permissao para salvar esta entrega.");
+    return;
+  }
+
   const profile = getCurrentProfile();
   const pedido = getPedido(item.pedido_id);
   const payload = {
@@ -772,6 +797,31 @@ function getFilteredRouteItems() {
 
 function getSelectedRouteItem() {
   return routeState.agenda.find((item) => item.id === routeState.selectedScheduleId) || null;
+}
+
+function canOperateRouteItem(item) {
+  const profile = getCurrentProfile();
+  if (!canOperateDeliveries(profile) || !item) {
+    return false;
+  }
+
+  if (isAdmin(profile) || isSupervisor(profile)) {
+    return true;
+  }
+
+  return isDriverEmployee(profile) && item.motorista_id === profile.id;
+}
+
+function isAllowedStatusTransition(currentStatus, nextStatus) {
+  const allowed = {
+    aguardando_confirmacao: ["em_rota"],
+    confirmado: ["em_rota"],
+    agendado: ["em_rota"],
+    em_rota: ["em_entrega"],
+    em_entrega: ["concluido"]
+  };
+
+  return allowed[currentStatus]?.includes(nextStatus) || false;
 }
 
 function getPedido(id) {

@@ -86,6 +86,10 @@ export function canManageSchedule(profile) {
   return isAdmin(profile) || isSupervisor(profile);
 }
 
+export function canOperateDeliveries(profile) {
+  return isAdmin(profile) || isSupervisor(profile) || isDriverEmployee(profile);
+}
+
 export function canViewFinance(profile) {
   return isAdmin(profile) || isFinance(profile);
 }
